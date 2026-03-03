@@ -11,23 +11,40 @@ See [docs/overview.md](docs/overview.md) for an overview of the base module cont
 
 Use this template to describe your project. Think about these four components and the messages they send between each other:
 
-### My Smart City Project: [Project Name]
+### My Smart City Project: Halftime Queue Dynamics in Stadium Section A4
 
 #### 1. The Trigger (Who/What is moving?)
-Describe the **Agents** (Humans, Animals, Vehicles) and the **Surroundings** (Weather, Time).
-*Example: A citizen drops a pizza box into the smart-bin.*
+**Agents:** Spectators in Section A4 (about 1,000 people) moving between seats, cafés, toilets, and urinals.
+
+**Surroundings:**
+- Halftime duration is fixed at 15 minutes, creating strong time pressure.
+- Walking time varies by seat position: about 30 seconds to 5 minutes one way.
+- Demand peaks in the first 3–5 minutes after halftime starts.
+- Spectators can choose different activity orders (toilet first, café first, one service only, or coordinated group behavior).
 
 #### 2. The Observer (What does the city see?)
-What **Sensor** picks up the information? 
-*Example: An infrared sensor inside the bin detects the height of the trash.*
+The simulation observes virtual sensor/events for:
+- Queue arrivals at cafés, women’s toilets, men’s toilets, and urinals
+- Current queue length per line and per zone
+- Service start and completion times
+- Concourse congestion when queue lengths begin blocking walking paths
+- Remaining halftime time for each spectator
 
 #### 3. The Control Center (The Logic)
-How does the city "think" about this information?
-*Example: If the trash height is more than 80%, send a signal to the garbage department.*
+The control logic updates movement and queue behavior over time:
+- Spectators select facilities and sequence of actions based on needs and available time.
+- Service times are randomized (café: 30–60 seconds, toilets: 1–3 minutes, urinals faster on average).
+- If queues grow to around 15 people per line (up to 8 lines), movement paths are blocked and walking speed is reduced.
+- Spectators may abandon queues, skip services, or stay seated if they risk missing kickoff.
+- Two identical café zones are modeled so spectators can choose either area.
 
 #### 4. The Response (What happens next?)
-What is the **Controller** that changes the city?
-*Example: A digital map in the garbage truck updates to show a "High Priority" pickup.*
+The controller updates facility states and publishes measurable outcomes for each simulation run:
+- **Maximum queue length** at cafés and toilets
+- **Average waiting time** in queues
+- **Missed kickoff count** (spectators not back in seat before second half)
+
+These outputs show how congestion forms in Section A4 and help compare halftime scenarios under different crowd and timing conditions.
 
 ---
 
