@@ -1,72 +1,77 @@
 # Configuration (`simulated_city.config`)
 
-This module loads workshop configuration from:
+Phase 2 adds typed halftime configuration for the Section A4 queue simulation.
 
-- `config.yaml` (committed defaults, safe to share)
-- optional `.env` (gitignored, for secrets like broker credentials)
+## What `load_config()` returns
 
-It returns a single `AppConfig` object that contains `MqttConfig`.
+`simulated_city.config.load_config()` now returns an `AppConfig` object with:
 
+- `mqtt`: primary MQTT config
+- `mqtt_configs`: all active MQTT profiles
+- `simulation`: optional legacy template simulation config
+- `halftime`: optional typed `HalftimeSimulationConfig`
 
-## Install
+## New halftime schema in `config.yaml`
 
-The base install already includes config support:
+Use this top-level key:
 
-```bash
-python -m pip install -e "."
+```yaml
+halftime:
+  seed: 42
+
+  capacity:
+    spectator_count: 1000
+    toilet_servers: 15
+    cafe_servers: 10
+    shared_urinal_total: 16
+
+  timing:
+    halftime_duration_s: 900
+    inter_facility_walk_s: 30
+    walking_time_min_s: 30
+    walking_time_mode_s: 120
+    walking_time_max_s: 300
+    toilet_service_s: {min: 60, max: 180}
+    cafe_service_s: {min: 30, max: 60}
+    urinal_service_s: {min: 20, max: 45}
+
+  behavior:
+    seat_leave_rate: 0.70
+    queue_abandon_threshold_s: 240
+    queue_switch_threshold_people: 15
+    missed_kickoff_risk_window_s: 120
+
+  blocking:
+    queue_people_per_line_threshold: 15
+    lines_considered: 8
+    walking_speed_factor_when_blocked: 0.6
+
+  kpi:
+    percentiles: [1, 5, 10, 25, 50, 75, 90, 95, 99, 100]
 ```
 
+## Validation rules
 
-## Data classes
+The typed dataclasses in `src/simulated_city/config_models.py` validate the following:
 
-### `MqttConfig`
+- `behavior.seat_leave_rate` is within `0..1`
+- `capacity.spectator_count > 0`
+- Facility counts are `>= 0`
+- Service ranges satisfy `min <= max`
+- Walking mode is inside `[walking_time_min_s, walking_time_max_s]`
+- Blocking speed factor is in `(0, 1]`
+- KPI percentiles are all within `1..100`
 
-Holds broker and topic settings.
+If values are invalid, `load_config()` raises `ValueError` with a beginner-friendly message.
 
-Typical fields:
-
-- `host`, `port`, `tls`
-- `username`, `password` (usually loaded from environment variables)
-- `client_id_prefix`, `keepalive_s`, `base_topic`
-
-
-### `AppConfig`
-
-Top-level config wrapper. Currently contains:
-
-- `mqtt: MqttConfig`
-
-
-## Functions
-
-### `load_config(path="config.yaml") -> AppConfig`
-
-Loads configuration, applying these rules:
-
-1. Load `.env` from the current working directory if present.
-2. Find `config.yaml`:
-   - if `path` exists (or is absolute), use it
-   - if `path` is a bare filename like `config.yaml`, search parent directories
-     so notebooks in `notebooks/` still find the repo-root `config.yaml`
-3. Read `mqtt.*` settings from YAML.
-4. Optionally read credentials from environment variables named in YAML:
-   - `mqtt.username_env`
-   - `mqtt.password_env`
-
-Example:
+## Use in simulation code
 
 ```python
 from simulated_city.config import load_config
+from simulated_city.simulation_core import simulate_halftime_from_app_config
 
-cfg = load_config()
-print(cfg.mqtt.host, cfg.mqtt.port, cfg.mqtt.tls)
-print("base topic:", cfg.mqtt.base_topic)
+app_config = load_config()
+result = simulate_halftime_from_app_config(app_config)
 ```
 
-
-## Internal helpers (advanced)
-
-These are used by `load_config()` and normally don’t need to be called directly:
-
-- `_load_yaml_dict(path) -> dict`: reads a YAML mapping (or returns `{}`)
-- `_resolve_default_config_path(path) -> Path`: notebook-friendly path resolution
+The simulation helper reads `app_config.halftime` and maps values to `simulate_halftime(...)` automatically.

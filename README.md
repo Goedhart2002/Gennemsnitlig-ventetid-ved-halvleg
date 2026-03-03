@@ -5,6 +5,38 @@ This is a template repository.
 Get started by reading [docs/setup.md](docs/setup.md).
 See [docs/overview.md](docs/overview.md) for an overview of the base module content.
 
+## Current notebook run order (Section A4 halftime)
+
+Run the notebooks in this order so publishers are available before subscribers:
+
+1. `notebooks/agent_facility_manager.ipynb` (start subscriber first)
+2. `notebooks/agent_congestion.ipynb` (start subscriber first)
+3. `notebooks/agent_metrics.ipynb` (start subscriber first)
+4. `notebooks/dashboard_a4.ipynb` (start dashboard subscriptions)
+5. `notebooks/agent_spectator_flow.ipynb` (start publisher last)
+
+This run order ensures spectator events are consumed by facility + metrics, queue updates are consumed by congestion + dashboard, and KPI/congestion updates are visible in the dashboard window.
+
+## Phase runtime docs
+
+- [docs/phase_1_runtime.md](docs/phase_1_runtime.md)
+- [docs/phase_2_runtime.md](docs/phase_2_runtime.md)
+- [docs/phase_3_runtime.md](docs/phase_3_runtime.md)
+- [docs/phase_4_runtime.md](docs/phase_4_runtime.md)
+- [docs/phase_5_runtime.md](docs/phase_5_runtime.md)
+- [docs/phase_6_runtime.md](docs/phase_6_runtime.md)
+- [docs/phase_7_runtime.md](docs/phase_7_runtime.md)
+
+## Instructor KPI review quick guide
+
+Use the dashboard summary and KPI payload from the metrics agent to review outcomes:
+
+- `average_wait_s`: overall wait pressure during halftime.
+- `wait_percentiles_s.P50`, `P95`, `P99`: median vs tail waiting-time behavior.
+- `missed_kickoff_count`: should reflect the strict 900-second halftime rule.
+
+See [docs/mqtt.md](docs/mqtt.md) for exact topic names and payload schemas.
+
 ## Template for a project
 
 ### Step 1: Define Your Simulation (Before Any Code)
@@ -36,7 +68,12 @@ The control logic updates movement and queue behavior over time:
 - Service times are randomized (café: 30–60 seconds, toilets: 1–3 minutes, urinals faster on average).
 - If queues grow to around 15 people per line (up to 8 lines), movement paths are blocked and walking speed is reduced.
 - Spectators may abandon queues, skip services, or stay seated if they risk missing kickoff.
-- Two identical café zones are modeled so spectators can choose either area.
+- Default participation is realistic: about 70% leave seats in halftime while about 30% remain seated (`halftime.behavior.seat_leave_rate: 0.70`).
+- Two zones are active in parallel during halftime.
+	- Zone 1: men toilets 6, women toilets 6, café 8 lines
+	- Zone 2: men toilets 6, women toilets 6, café 8 lines
+	- Shared men urinal between zones: capacity 16
+	- Spectators are distributed across both zones at the same time (not mirrored queue copies).
 
 #### 4. The Response (What happens next?)
 The controller updates facility states and publishes measurable outcomes for each simulation run:

@@ -18,7 +18,7 @@ from .geo import (
 	wgs2utm,
 	utm2wgs,
 )
-from .mqtt import MqttConnector, MqttPublisher
+from .mqtt import MqttConnector, MqttPublisher, connect_mqtt, publish_json_checked
 
 __all__ = [
 	"AppConfig",
@@ -34,4 +34,6 @@ __all__ = [
 	"utm2wgs",
 	"MqttConnector",
 	"MqttPublisher",
+	"connect_mqtt",
+	"publish_json_checked",
 ]

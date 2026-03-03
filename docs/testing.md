@@ -9,6 +9,7 @@ The test suite uses **pytest** and covers four main areas:
 - Geospatial coordinate transforms
 - MapLibre map integration
 - MQTT connectivity and publishing
+- Phase-based agent communication and KPI aggregation (Phase 1-6)
 
 All tests pass with a local Mosquitto broker running on `localhost:1883`.
 
@@ -34,6 +35,9 @@ python -m pytest tests/test_geo.py -v
 
 # MapLibre integration tests
 python -m pytest tests/test_maplibre_live.py -v
+
+# Phase 6 congestion + metrics tests
+python -m pytest tests/test_phase6_congestion_metrics.py -v
 ```
 
 ### Run a specific test function
@@ -110,6 +114,18 @@ MapLibre map integration tests.
 - MapLibre integration is initialized correctly
 - Viewer API methods are available
 - Map properties (zoom, center) can be set
+
+### test_phase6_congestion_metrics.py
+
+Phase 6 congestion and metrics aggregation checks.
+
+| Test | Purpose |
+|------|---------|
+| `test_phase6_congestion_policy_blocks_by_zone_cafe_total()` | Validate per-zone cafe blocking threshold rule |
+| `test_phase6_build_congestion_payload_from_queue_state()` | Convert queue-state input to congestion-state output payload |
+| `test_phase6_metrics_kpi_payload_contains_full_percentile_profile()` | Ensure KPI payload includes `average_wait_s`, `missed_kickoff_count`, and `P01..P100` |
+| `test_phase6_missed_kickoff_uses_exact_900_seconds()` | Enforce missed kickoff evaluation exactly at `900s` |
+| `test_phase6_final_policy_enforcement()` | Validate final scenario rules (no disruptions, controlled group coordination) |
 
 ## Multi-Broker Configuration Testing
 

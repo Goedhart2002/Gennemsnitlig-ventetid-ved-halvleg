@@ -29,6 +29,32 @@ The workshop uses the MapLibre backend through the `Map` widget:
 from anymap_ts import Map
 ```
 
+## Phase 5 dashboard pattern (A4)
+
+In Phase 5, `notebooks/dashboard_a4.ipynb` uses `Map` together with MQTT topic subscriptions.
+
+Dashboard topic inputs:
+
+- `stadium/a4/halftime/state/queues`
+- `stadium/a4/halftime/metrics/kpi`
+- `stadium/a4/halftime/state/congestion` (optional)
+
+Minimal pattern:
+
+```python
+from anymap_ts import Map
+from simulated_city import mqtt
+from simulated_city.config import load_config
+
+cfg = load_config()
+client = mqtt.connect_mqtt(cfg.mqtt)
+
+m = Map(center=(12.5683, 55.6761), zoom=17, height="560px")
+m.add_basemap("OpenStreetMap.Mapnik")
+```
+
+Update map markers from queue-state payloads only (no folium/matplotlib/plotly for live dashboards).
+
 
 ## Create a map
 

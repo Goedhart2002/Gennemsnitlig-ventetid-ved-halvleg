@@ -67,3 +67,53 @@ mqtt:
 #   # All available brokers by name:
 #   print(config.mqtt_configs["local"].host)
 #   print(config.mqtt_configs["mqtthq"].host)
+
+halftime:
+  # Phase 2: Configuration-driven Section A4 simulation settings.
+  seed: 42
+
+  capacity:
+    spectator_count: 1000
+    # Two-zone setup:
+    # - zone 1 toilets: 6 men + 6 women
+    # - zone 2 toilets: 6 men + 6 women
+    # - total toilet servers = 24
+    toilet_servers: 24
+    # - zone 1 cafe lines: 8
+    # - zone 2 cafe lines: 8
+    # - total cafe servers = 16
+    cafe_servers: 16
+    shared_urinal_total: 16
+
+  timing:
+    halftime_duration_s: 900
+    inter_facility_walk_s: 30
+    walking_time_min_s: 30
+    walking_time_mode_s: 120
+    walking_time_max_s: 300
+
+    # Service distributions are inclusive integer ranges (seconds).
+    toilet_service_s:
+      min: 60
+      max: 180
+    cafe_service_s:
+      min: 30
+      max: 60
+    urinal_service_s:
+      min: 20
+      max: 45
+
+  behavior:
+    seat_leave_rate: 0.70
+    queue_abandon_threshold_s: 240
+    queue_switch_threshold_people: 15
+    missed_kickoff_risk_window_s: 120
+
+  blocking:
+    queue_people_per_line_threshold: 15
+    lines_considered: 8
+    walking_speed_factor_when_blocked: 0.6
+
+  kpi:
+    # Valid range is 1..100 (inclusive).
+    percentiles: [1, 5, 10, 25, 50, 75, 90, 95, 99, 100]

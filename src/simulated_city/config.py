@@ -9,6 +9,16 @@ from typing import Any
 from dotenv import load_dotenv
 import yaml
 
+from simulated_city.config_models import (
+    HalftimeBehaviorConfig,
+    HalftimeBlockingConfig,
+    HalftimeCapacityConfig,
+    HalftimeKpiConfig,
+    HalftimeSimulationConfig,
+    HalftimeTimingConfig,
+    ServiceDistributionConfig,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class MqttConfig:
@@ -27,6 +37,7 @@ class AppConfig:
     mqtt: MqttConfig  # Primary (first active) MQTT broker
     mqtt_configs: dict[str, MqttConfig] = field(default_factory=dict)  # All active profiles
     simulation: "SimulationConfig | None" = None
+    halftime: HalftimeSimulationConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +98,7 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
     active_profiles = _get_active_profiles(data)
     mqtt_config_dicts = _load_mqtt_configs(data, active_profiles)
     simulation = data.get("simulation")
+    halftime = data.get("halftime")
 
     # Build MqttConfig objects for all active profiles
     mqtt_configs: dict[str, MqttConfig] = {}
@@ -102,11 +114,13 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
         raise ValueError("No active MQTT profiles found in config")
 
     sim_cfg = _parse_simulation_config(simulation)
+    halftime_cfg = _parse_halftime_config(halftime)
 
     return AppConfig(
         mqtt=primary_mqtt,
         mqtt_configs=mqtt_configs,
         simulation=sim_cfg,
+        halftime=halftime_cfg,
     )
 
 
@@ -337,6 +351,126 @@ def _parse_simulation_config(raw: Any) -> SimulationConfig | None:
         start_time=start_time,
         seed=seed,
         locations=tuple(locations),
+    )
+
+
+def _parse_halftime_config(raw: Any) -> HalftimeSimulationConfig | None:
+    """Parse typed `halftime:` configuration used by Section A4 agents."""
+
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("Config key 'halftime' must be a mapping")
+
+    seed = int(raw.get("seed") if raw.get("seed") is not None else 42)
+
+    capacity_raw = raw.get("capacity") or {}
+    if not isinstance(capacity_raw, dict):
+        raise ValueError("Config key 'halftime.capacity' must be a mapping")
+    capacity = HalftimeCapacityConfig(
+        spectator_count=int(capacity_raw.get("spectator_count") if capacity_raw.get("spectator_count") is not None else 1000),
+        toilet_servers=int(capacity_raw.get("toilet_servers") if capacity_raw.get("toilet_servers") is not None else 15),
+        cafe_servers=int(capacity_raw.get("cafe_servers") if capacity_raw.get("cafe_servers") is not None else 10),
+        shared_urinal_total=int(
+            capacity_raw.get("shared_urinal_total") if capacity_raw.get("shared_urinal_total") is not None else 16
+        ),
+    )
+
+    timing_raw = raw.get("timing") or {}
+    if not isinstance(timing_raw, dict):
+        raise ValueError("Config key 'halftime.timing' must be a mapping")
+
+    toilet_service_raw = timing_raw.get("toilet_service_s") or {}
+    cafe_service_raw = timing_raw.get("cafe_service_s") or {}
+    urinal_service_raw = timing_raw.get("urinal_service_s") or {}
+    if not isinstance(toilet_service_raw, dict):
+        raise ValueError("Config key 'halftime.timing.toilet_service_s' must be a mapping")
+    if not isinstance(cafe_service_raw, dict):
+        raise ValueError("Config key 'halftime.timing.cafe_service_s' must be a mapping")
+    if not isinstance(urinal_service_raw, dict):
+        raise ValueError("Config key 'halftime.timing.urinal_service_s' must be a mapping")
+
+    timing = HalftimeTimingConfig(
+        halftime_duration_s=int(timing_raw.get("halftime_duration_s") if timing_raw.get("halftime_duration_s") is not None else 900),
+        inter_facility_walk_s=int(
+            timing_raw.get("inter_facility_walk_s") if timing_raw.get("inter_facility_walk_s") is not None else 30
+        ),
+        walking_time_min_s=int(timing_raw.get("walking_time_min_s") if timing_raw.get("walking_time_min_s") is not None else 30),
+        walking_time_mode_s=int(timing_raw.get("walking_time_mode_s") if timing_raw.get("walking_time_mode_s") is not None else 120),
+        walking_time_max_s=int(timing_raw.get("walking_time_max_s") if timing_raw.get("walking_time_max_s") is not None else 300),
+        toilet_service_s=ServiceDistributionConfig(
+            min_s=int(toilet_service_raw.get("min") if toilet_service_raw.get("min") is not None else 60),
+            max_s=int(toilet_service_raw.get("max") if toilet_service_raw.get("max") is not None else 180),
+        ),
+        cafe_service_s=ServiceDistributionConfig(
+            min_s=int(cafe_service_raw.get("min") if cafe_service_raw.get("min") is not None else 30),
+            max_s=int(cafe_service_raw.get("max") if cafe_service_raw.get("max") is not None else 60),
+        ),
+        urinal_service_s=ServiceDistributionConfig(
+            min_s=int(urinal_service_raw.get("min") if urinal_service_raw.get("min") is not None else 20),
+            max_s=int(urinal_service_raw.get("max") if urinal_service_raw.get("max") is not None else 45),
+        ),
+    )
+
+    behavior_raw = raw.get("behavior") or {}
+    if not isinstance(behavior_raw, dict):
+        raise ValueError("Config key 'halftime.behavior' must be a mapping")
+    behavior = HalftimeBehaviorConfig(
+        seat_leave_rate=float(
+            behavior_raw.get("seat_leave_rate") if behavior_raw.get("seat_leave_rate") is not None else 0.70
+        ),
+        queue_abandon_threshold_s=int(
+            behavior_raw.get("queue_abandon_threshold_s")
+            if behavior_raw.get("queue_abandon_threshold_s") is not None
+            else 240
+        ),
+        queue_switch_threshold_people=int(
+            behavior_raw.get("queue_switch_threshold_people")
+            if behavior_raw.get("queue_switch_threshold_people") is not None
+            else 15
+        ),
+        missed_kickoff_risk_window_s=int(
+            behavior_raw.get("missed_kickoff_risk_window_s")
+            if behavior_raw.get("missed_kickoff_risk_window_s") is not None
+            else 120
+        ),
+    )
+
+    blocking_raw = raw.get("blocking") or {}
+    if not isinstance(blocking_raw, dict):
+        raise ValueError("Config key 'halftime.blocking' must be a mapping")
+    blocking = HalftimeBlockingConfig(
+        queue_people_per_line_threshold=int(
+            blocking_raw.get("queue_people_per_line_threshold")
+            if blocking_raw.get("queue_people_per_line_threshold") is not None
+            else 15
+        ),
+        lines_considered=int(blocking_raw.get("lines_considered") if blocking_raw.get("lines_considered") is not None else 8),
+        walking_speed_factor_when_blocked=float(
+            blocking_raw.get("walking_speed_factor_when_blocked")
+            if blocking_raw.get("walking_speed_factor_when_blocked") is not None
+            else 0.6
+        ),
+    )
+
+    kpi_raw = raw.get("kpi") or {}
+    if not isinstance(kpi_raw, dict):
+        raise ValueError("Config key 'halftime.kpi' must be a mapping")
+    percentiles_raw = kpi_raw.get("percentiles")
+    if percentiles_raw is None:
+        percentiles_raw = [1, 5, 10, 25, 50, 75, 90, 95, 99, 100]
+    if not isinstance(percentiles_raw, list):
+        raise ValueError("Config key 'halftime.kpi.percentiles' must be a list")
+    percentiles = tuple(int(value) for value in percentiles_raw)
+    kpi = HalftimeKpiConfig(percentiles=percentiles)
+
+    return HalftimeSimulationConfig(
+        seed=seed,
+        capacity=capacity,
+        timing=timing,
+        behavior=behavior,
+        blocking=blocking,
+        kpi=kpi,
     )
 
 

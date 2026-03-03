@@ -175,10 +175,66 @@ python -m pytest
 
 ## Run notebooks
 
-By default, run notebooks in VS Code: open a notebook in `notebooks/` and select the `.venv` kernel.
+By default, run notebooks in VS Code: open notebooks in `notebooks/` and select the `.venv` kernel.
 
 You can also run notebooks in a browser by starting JupyterLab:
 
 ```bash
 python -m jupyterlab
 ```
+
+### Clean-start reproducible workflow (Section A4)
+
+1. Restart terminals and activate environment:
+
+```bash
+source .venv/bin/activate
+python scripts/verify_setup.py
+```
+
+2. Open notebooks in this exact order and run the setup cells first:
+
+- `notebooks/agent_facility_manager.ipynb`
+- `notebooks/agent_congestion.ipynb`
+- `notebooks/agent_metrics.ipynb`
+- `notebooks/dashboard_a4.ipynb`
+- `notebooks/agent_spectator_flow.ipynb`
+
+3. For the first four notebooks, run all cells and let them wait for messages.
+4. In `agent_spectator_flow.ipynb`, run all cells to publish spectator events.
+5. Return to the other notebooks and confirm they report received/published counts.
+
+Why this order: subscribers and dashboard must be active before the spectator publisher starts.
+
+## Broker and topic troubleshooting
+
+### Connection fails immediately
+
+If a notebook fails on MQTT connection, check:
+
+- `config.yaml` uses the broker you actually have available in `mqtt.active_profiles`
+- `.env` includes required credentials for profiles using `username_env`/`password_env`
+- The broker is reachable from your machine (`127.0.0.1:1883` for local Mosquitto)
+
+Then rerun:
+
+```bash
+python scripts/verify_setup.py
+```
+
+### Verify messages are flowing
+
+Use `mosquitto_sub` in a separate terminal:
+
+```bash
+mosquitto_sub -h 127.0.0.1 -v -t "stadium/a4/halftime/#"
+```
+
+Expected topics during a successful run:
+
+- `stadium/a4/halftime/events/spectator`
+- `stadium/a4/halftime/state/queues`
+- `stadium/a4/halftime/state/congestion`
+- `stadium/a4/halftime/metrics/kpi`
+
+If no messages appear, ensure the spectator notebook has executed its publish cells and the subscriber notebooks were already running.
