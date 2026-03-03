@@ -104,7 +104,7 @@ halftime:
       max: 45
 
   behavior:
-    seat_leave_rate: 0.70
+    seat_leave_rate: 0.40
     queue_abandon_threshold_s: 240
     queue_switch_threshold_people: 15
     missed_kickoff_risk_window_s: 120
