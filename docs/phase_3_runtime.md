@@ -62,6 +62,7 @@ Expected lines include:
 If different:
 - verify `config.yaml` content
 - rerun Cell 3 after config edits
+- if `seed` is `null`, run-to-run differences are expected
 
 ### Cell 4 (Simulation Run)
 Purpose: run simulation and print KPIs.
@@ -75,7 +76,7 @@ Expected lines include:
 - `Total Served Tasks: 267`
 
 If different:
-- verify `seed` in `halftime` section is `42`
+- for reproducible baseline numbers, set `seed` in `halftime` section to `42`
 - verify you ran Cell 3 before Cell 4
 
 ### Cell 5 (MQTT Connect)

@@ -81,3 +81,18 @@ def test_phase1_seat_leave_rate_reduces_kickoff_misses() -> None:
 
     assert realistic_participation.missed_kickoff_count <= full_participation.missed_kickoff_count
     assert realistic_participation.total_served_tasks <= full_participation.total_served_tasks
+
+
+def test_phase1_women_ratio_changes_gendered_toilet_usage() -> None:
+    lower_ratio = simulate_halftime(**_base_params(seed=42), women_ratio=0.30)
+    higher_ratio = simulate_halftime(**_base_params(seed=42), women_ratio=0.50)
+
+    assert lower_ratio.women_toilet_served_count <= higher_ratio.women_toilet_served_count
+
+
+def test_phase1_women_ratio_validates_range() -> None:
+    try:
+        simulate_halftime(**_base_params(seed=42), women_ratio=1.2)
+        assert False, "Expected ValueError for out-of-range women_ratio"
+    except ValueError as error:
+        assert "women_ratio" in str(error)

@@ -59,7 +59,7 @@ Expected behavior by cell:
 
 ## 3. Expected Output
 
-The values below assume default `config.yaml` from this Phase 2 implementation (seed `42`, spectator count `1000`).
+The values below assume a deterministic run (for example seed `42`) and spectator count `1000`.
 
 ### Cell 3 (Load Config)
 Purpose: Load typed config and print simulation parameter values.
@@ -82,6 +82,7 @@ If different:
 - Verify `config.yaml` was saved.
 - Verify notebook kernel uses project environment.
 - Verify Cell 3 was rerun after editing config.
+- If `seed` is `null`, each run can differ (expected).
 
 ### Cell 4 (Run Simulation)
 Purpose: Execute simulation from loaded app config.
@@ -105,7 +106,7 @@ Expected values with current defaults:
 - `Service Rate: 26.70%`
 
 If different:
-- Ensure `seed: 42` in `halftime` config.
+- For reproducible baseline numbers, set `seed: 42` in `halftime` config.
 - Ensure no config values were changed after baseline.
 
 ### Cell 6 (Queue Summary)

@@ -17,7 +17,9 @@ Use this top-level key:
 
 ```yaml
 halftime:
-  seed: 42
+  # Use null for a new random run each time.
+  # Set a number only when you want reproducible results.
+  seed: null
 
   capacity:
     spectator_count: 1000
@@ -37,6 +39,7 @@ halftime:
 
   behavior:
     seat_leave_rate: 0.70
+    women_ratio: 0.30
     queue_abandon_threshold_s: 240
     queue_switch_threshold_people: 15
     missed_kickoff_risk_window_s: 120
@@ -55,6 +58,7 @@ halftime:
 The typed dataclasses in `src/simulated_city/config_models.py` validate the following:
 
 - `behavior.seat_leave_rate` is within `0..1`
+- `behavior.women_ratio` is within `0..1`
 - `capacity.spectator_count > 0`
 - Facility counts are `>= 0`
 - Service ranges satisfy `min <= max`

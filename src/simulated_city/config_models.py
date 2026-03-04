@@ -1,6 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TypedDict
+
+
+class SimulationCoreKwargs(TypedDict):
+    seed: int | None
+    spectator_count: int
+    halftime_duration_s: int
+    toilet_servers: int
+    cafe_servers: int
+    toilet_service_min_s: int
+    toilet_service_max_s: int
+    cafe_service_min_s: int
+    cafe_service_max_s: int
+    urinal_service_min_s: int
+    urinal_service_max_s: int
+    inter_facility_walk_s: int
+    seat_leave_rate: float
+    women_ratio: float
+    shared_urinal_total: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +89,7 @@ class HalftimeBehaviorConfig:
     """Behavior thresholds used by spectator and facility agents."""
 
     seat_leave_rate: float
+    women_ratio: float
     queue_abandon_threshold_s: int
     queue_switch_threshold_people: int
     missed_kickoff_risk_window_s: int
@@ -77,6 +97,8 @@ class HalftimeBehaviorConfig:
     def __post_init__(self) -> None:
         if not (0.0 <= self.seat_leave_rate <= 1.0):
             raise ValueError("halftime.behavior.seat_leave_rate must be within 0..1")
+        if not (0.0 <= self.women_ratio <= 1.0):
+            raise ValueError("halftime.behavior.women_ratio must be within 0..1")
         if self.queue_abandon_threshold_s < 0:
             raise ValueError("halftime.behavior.queue_abandon_threshold_s must be >= 0")
         if self.queue_switch_threshold_people < 0:
@@ -121,14 +143,14 @@ class HalftimeKpiConfig:
 class HalftimeSimulationConfig:
     """Typed halftime configuration shared by all later agents."""
 
-    seed: int
+    seed: int | None
     capacity: HalftimeCapacityConfig
     timing: HalftimeTimingConfig
     behavior: HalftimeBehaviorConfig
     blocking: HalftimeBlockingConfig
     kpi: HalftimeKpiConfig
 
-    def to_simulation_core_kwargs(self) -> dict[str, int]:
+    def to_simulation_core_kwargs(self) -> SimulationCoreKwargs:
         """Return kwargs for the current Phase 1/2 simulation core API."""
 
         return {
@@ -145,5 +167,6 @@ class HalftimeSimulationConfig:
             "urinal_service_max_s": self.timing.urinal_service_s.max_s,
             "inter_facility_walk_s": self.timing.inter_facility_walk_s,
             "seat_leave_rate": self.behavior.seat_leave_rate,
+            "women_ratio": self.behavior.women_ratio,
             "shared_urinal_total": self.capacity.shared_urinal_total,
         }

@@ -70,7 +70,9 @@ mqtt:
 
 halftime:
   # Phase 2: Configuration-driven Section A4 simulation settings.
-  seed: 42
+  # Set to null to get different random outcomes each run.
+  # Set to an integer to reproduce a specific run.
+  seed: null
 
   capacity:
     spectator_count: 1000
@@ -88,23 +90,25 @@ halftime:
   timing:
     halftime_duration_s: 900
     inter_facility_walk_s: 30
-    walking_time_min_s: 30
-    walking_time_mode_s: 120
-    walking_time_max_s: 300
+    walking_time_min_s: 20
+    walking_time_mode_s: 130
+    walking_time_max_s: 360
 
     # Service distributions are inclusive integer ranges (seconds).
     toilet_service_s:
-      min: 60
-      max: 180
+      min: 45
+      max: 220
     cafe_service_s:
-      min: 30
-      max: 60
-    urinal_service_s:
       min: 20
-      max: 45
+      max: 90
+    urinal_service_s:
+      min: 15
+      max: 70
 
   behavior:
-    seat_leave_rate: 0.40
+    seat_leave_rate: 0.70
+    # Section A4 assumption: 30% women and 70% men.
+    women_ratio: 0.30
     queue_abandon_threshold_s: 240
     queue_switch_threshold_people: 15
     missed_kickoff_risk_window_s: 120

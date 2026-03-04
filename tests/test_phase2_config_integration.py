@@ -38,6 +38,7 @@ def test_phase2_load_config_parses_halftime_section(tmp_path) -> None:
             urinal_service_s: {min: 20, max: 45}
           behavior:
             seat_leave_rate: 0.7
+            women_ratio: 0.3
             queue_abandon_threshold_s: 180
             queue_switch_threshold_people: 12
             missed_kickoff_risk_window_s: 90
@@ -61,6 +62,7 @@ def test_phase2_load_config_parses_halftime_section(tmp_path) -> None:
     assert cfg.halftime.timing.cafe_service_s.min_s == 30
     assert cfg.halftime.timing.toilet_service_s.max_s == 180
     assert cfg.halftime.behavior.seat_leave_rate == 0.7
+    assert cfg.halftime.behavior.women_ratio == 0.3
     assert cfg.halftime.blocking.queue_people_per_line_threshold == 15
     assert cfg.halftime.kpi.percentiles == (1, 50, 95, 100)
 
@@ -81,6 +83,7 @@ def test_phase2_validates_kpi_percentiles_range(tmp_path) -> None:
         halftime:
           behavior:
             seat_leave_rate: 1.5
+            women_ratio: 1.2
           kpi:
             percentiles: [0, 50, 101]
         """
@@ -93,7 +96,7 @@ def test_phase2_validates_kpi_percentiles_range(tmp_path) -> None:
         assert False, "Expected ValueError for out-of-range KPI percentiles"
     except ValueError as error:
       message = str(error)
-      assert "1..100" in message or "seat_leave_rate" in message
+      assert "1..100" in message or "seat_leave_rate" in message or "women_ratio" in message
 
 
 def test_phase2_simulation_core_uses_loaded_config(tmp_path) -> None:

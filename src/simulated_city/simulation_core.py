@@ -147,7 +147,7 @@ def _active_queue_length(queue: QueueState) -> int:
 
 
 def simulate_halftime(
-    seed: int,
+    seed: int | None,
     spectator_count: int,
     halftime_duration_s: int,
     toilet_servers: int,
@@ -160,17 +160,20 @@ def simulate_halftime(
     urinal_service_max_s: int = 45,
     inter_facility_walk_s: int = 30,
     seat_leave_rate: float = 0.70,
+    women_ratio: float = 0.30,
     shared_urinal_total: int = 0,
 ) -> SimulationResult:
     rng = random.Random(seed)
 
     if not (0.0 <= seat_leave_rate <= 1.0):
         raise ValueError("seat_leave_rate must be within 0..1")
+    if not (0.0 <= women_ratio <= 1.0):
+        raise ValueError("women_ratio must be within 0..1")
 
     spectators: dict[int, SpectatorState] = {}
     for spectator_id in range(spectator_count):
         participates = rng.random() < seat_leave_rate
-        is_male = rng.random() < 0.5
+        is_male = not (rng.random() < women_ratio)
         spectators[spectator_id] = SpectatorState(
             spectator_id=spectator_id,
             is_male=is_male,

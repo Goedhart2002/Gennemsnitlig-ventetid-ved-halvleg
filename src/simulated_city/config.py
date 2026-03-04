@@ -318,8 +318,10 @@ def _parse_simulation_config(raw: Any) -> SimulationConfig | None:
     start_time_raw = raw.get("start_time")
     start_time = _parse_utc_datetime(start_time_raw) if start_time_raw is not None else None
 
-    seed_raw = raw.get("seed")
-    seed = int(seed_raw) if seed_raw is not None else None
+    if "seed" in raw and raw.get("seed") is None:
+        seed = None
+    else:
+        seed = int(raw.get("seed") if raw.get("seed") is not None else 42)
 
     locations_raw = raw.get("locations") or []
     if not isinstance(locations_raw, list):
@@ -362,7 +364,8 @@ def _parse_halftime_config(raw: Any) -> HalftimeSimulationConfig | None:
     if not isinstance(raw, dict):
         raise ValueError("Config key 'halftime' must be a mapping")
 
-    seed = int(raw.get("seed") if raw.get("seed") is not None else 42)
+    seed_raw = raw.get("seed")
+    seed = int(seed_raw) if seed_raw is not None else None
 
     capacity_raw = raw.get("capacity") or {}
     if not isinstance(capacity_raw, dict):
@@ -419,6 +422,7 @@ def _parse_halftime_config(raw: Any) -> HalftimeSimulationConfig | None:
         seat_leave_rate=float(
             behavior_raw.get("seat_leave_rate") if behavior_raw.get("seat_leave_rate") is not None else 0.70
         ),
+        women_ratio=float(behavior_raw.get("women_ratio") if behavior_raw.get("women_ratio") is not None else 0.30),
         queue_abandon_threshold_s=int(
             behavior_raw.get("queue_abandon_threshold_s")
             if behavior_raw.get("queue_abandon_threshold_s") is not None
