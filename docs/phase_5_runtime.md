@@ -30,13 +30,24 @@ This guide documents Phase 5 where a dashboard notebook subscribes to queue/KPI/
 1. Start MQTT broker.
 2. Open and run `notebooks/agent_spectator_flow.ipynb` (publisher).
 3. Open and run `notebooks/agent_facility_manager.ipynb` (queue-state publisher).
-4. Open and run `notebooks/dashboard_a4.ipynb` cells 1-6.
+4. Optional photo overlay: save your A4 screenshot as `notebooks/assets/a4_section_a4.png`.
+5. Open and run `notebooks/dashboard_a4.ipynb` cells 1-7.
 
 Expected behavior:
 - Dashboard connects to broker.
 - Dashboard subscribes to queue, KPI, and optional congestion topics.
-- Dashboard map markers update when queue-state messages arrive.
+- Dashboard map markers update when movement and queue-state messages arrive.
 - Dashboard prints queue/KPI/congestion summary after listening window.
+
+### Workflow C: 1000-spectator movement demo
+1. In `config.yaml`, keep `halftime.capacity.spectator_count: 1000`.
+2. Run `notebooks/agent_spectator_flow.ipynb` cells 1-7 to publish movement snapshots.
+3. Save your section image at `notebooks/assets/a4_section_a4.png` (optional but recommended).
+4. Run `notebooks/dashboard_a4.ipynb` cells 1-7.
+
+Expected behavior:
+- Dashboard reports non-zero movement message counts during the listening loop.
+- Dashboard summary shows non-zero `Movement points (latest snapshot)`.
 
 ### Workflow B: Optional KPI/congestion producers
 - If KPI and congestion agents are not available yet, dashboard still runs.
@@ -66,16 +77,27 @@ Expected line:
 If missing:
 - callback did not install; rerun Cell 4 before Cell 5.
 
+### Cell 3B (Photo Overlay Calibration)
+Purpose: place A4 screenshot as a georeferenced image overlay.
+
+Expected behavior:
+- If image exists at `notebooks/assets/a4_section_a4.png`, map shows image overlay and 4 green corner markers.
+- If not found, cell prints where to save the image.
+
+Calibration rule:
+- Edit `a4_overlay_coordinates` in this cell.
+- Coordinate order must be: top-left, top-right, bottom-right, bottom-left.
+
 ### Cell 5 (Listening Window)
-Purpose: subscribe and process topic data for 30 seconds.
+Purpose: subscribe and process topic data for 60 seconds.
 
 Expected lines include:
-- `Subscriptions active. Listening for 30 seconds...`
+- `Subscriptions active. Listening for 60 seconds...`
 - periodic status lines like:
-  - `t+05s | queue_points=... latest_queue_ts=...`
+  - `t+05s | run_id=... queue_ts=... movement_ts=... kpi_ts=... | counts q=... m=... k=... c=...`
 - `Dashboard listening window finished.`
 
-Success means queue_points increases when upstream agents are running.
+Success means queue and movement counts increase when upstream agents are running.
 
 ### Cell 6 (Summary)
 Purpose: print queue trends and KPI/congestion summary.
@@ -153,8 +175,9 @@ logging.basicConfig(level=logging.INFO)
 ### Common issues
 - Connection timeout:
   - Start broker and verify `mqtt` host/port profile in `config.yaml`.
-- Queue points stay zero:
-  - Ensure both publisher notebooks are running and publishing queue-state messages.
+- Queue or movement counts stay zero:
+  - Ensure publisher notebooks are running before dashboard listening starts.
+  - Keep the dashboard listening window open for the full 60 seconds.
 - KPI parse errors:
   - Ensure `wait_percentiles_s` includes all keys `P01` to `P100`.
 

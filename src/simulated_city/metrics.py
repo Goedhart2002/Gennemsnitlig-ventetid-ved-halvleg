@@ -47,6 +47,8 @@ class MetricsAggregatorState:
     went_down_count: int = 0
     went_down_made_back_count: int = 0
     active_run_id: str | None = None
+    last_spectator_timestamp_s: int = -1
+    last_queue_timestamp_s: int = -1
 
 
 def _percentile(sorted_values: list[float], percentile: int) -> float:
@@ -94,6 +96,10 @@ def record_spectator_event(state: MetricsAggregatorState, payload: dict) -> None
         return
 
     timestamp_s = int(payload["timestamp_s"])
+    if timestamp_s <= state.last_spectator_timestamp_s:
+        return
+    state.last_spectator_timestamp_s = timestamp_s
+
     queue_lengths = payload["queue_lengths"]
     queue_total = int(queue_lengths["toilet"]) + int(queue_lengths["cafe"])
 
@@ -116,6 +122,11 @@ def record_queue_state(state: MetricsAggregatorState, payload: dict) -> None:
     if not _accept_run_id(state, payload):
         return
 
+    timestamp_s = int(payload["timestamp_s"])
+    if timestamp_s <= state.last_queue_timestamp_s:
+        return
+    state.last_queue_timestamp_s = timestamp_s
+
     queues = payload["queues"]
     queue_total = (
         int(queues["zone_a"]["toilet"])
@@ -135,6 +146,14 @@ def finalize_kpi_payload(
     schema_version: str = "1.0",
 ) -> dict:
     """Produce final KPI payload including P01..P100 percentiles."""
+
+    if state.active_run_id is not None and run_id != state.active_run_id:
+        raise ValueError("run_id must match MetricsAggregatorState.active_run_id")
+    if state.active_run_id is None:
+        state.active_run_id = run_id
+
+    if timestamp_s < state.halftime_duration_s:
+        raise ValueError("timestamp_s must be >= halftime_duration_s when finalizing KPI payload")
 
     sorted_samples = sorted(state.wait_samples_s)
     average_wait_s = sum(sorted_samples) / len(sorted_samples) if sorted_samples else 0.0

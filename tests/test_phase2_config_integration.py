@@ -48,6 +48,26 @@ def test_phase2_load_config_parses_halftime_section(tmp_path) -> None:
             walking_speed_factor_when_blocked: 0.7
           kpi:
             percentiles: [1, 50, 95, 100]
+
+        halftime_map:
+          center_lng: 12.5683
+          center_lat: 55.6761
+          zoom: 17
+          seat_area_bbox: [12.5679, 55.6759, 12.5687, 55.6766]
+          zone_1_toilet_w: [12.5678, 55.6762]
+          zone_1_toilet_m: [12.5679, 55.67622]
+          zone_1_cafe: [12.5680, 55.67618]
+          zone_2_toilet_w: [12.5689, 55.6760]
+          zone_2_toilet_m: [12.5690, 55.67602]
+          zone_2_cafe: [12.5691, 55.67598]
+          shared_urinal: [12.5685, 55.6756]
+          publish_interval_s: 1
+          max_points_per_message: 1000
+          zone_naming:
+            canonical_service_zones: [zone_1, zone_2]
+            legacy_zone_aliases:
+              zone_a: zone_1
+              zone_b: zone_2
         """
         ).strip(),
         encoding="utf-8",
@@ -65,6 +85,12 @@ def test_phase2_load_config_parses_halftime_section(tmp_path) -> None:
     assert cfg.halftime.behavior.women_ratio == 0.3
     assert cfg.halftime.blocking.queue_people_per_line_threshold == 15
     assert cfg.halftime.kpi.percentiles == (1, 50, 95, 100)
+    assert cfg.halftime_map is not None
+    assert cfg.halftime_map.center.lng == 12.5683
+    assert cfg.halftime_map.zone_1_toilet_w.lat == 55.6762
+    assert cfg.halftime_map.publish_interval_s == 1
+    assert cfg.halftime_map.zone_naming.canonical_service_zones == ("zone_1", "zone_2")
+    assert cfg.halftime_map.zone_naming.legacy_zone_aliases["zone_a"] == "zone_1"
 
 
 def test_phase2_validates_kpi_percentiles_range(tmp_path) -> None:
@@ -183,3 +209,61 @@ def test_phase2_validates_seat_leave_rate_range(tmp_path) -> None:
         assert False, "Expected ValueError for out-of-range seat_leave_rate"
     except ValueError as error:
         assert "seat_leave_rate" in str(error)
+
+
+def test_phase2_validates_halftime_map_publish_interval(tmp_path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(
+        dedent(
+            """
+        mqtt:
+          active_profiles: [local]
+          profiles:
+            local:
+              host: localhost
+              port: 1883
+              tls: false
+
+        halftime_map:
+          publish_interval_s: 0
+        """
+        ).strip(),
+        encoding="utf-8",
+    )
+
+    try:
+        load_config(path)
+        assert False, "Expected ValueError for invalid halftime_map.publish_interval_s"
+    except ValueError as error:
+        assert "publish_interval_s" in str(error)
+
+
+def test_phase2_validates_zone_naming_canonical_values(tmp_path) -> None:
+    path = tmp_path / "config.yaml"
+    path.write_text(
+        dedent(
+            """
+        mqtt:
+          active_profiles: [local]
+          profiles:
+            local:
+              host: localhost
+              port: 1883
+              tls: false
+
+        halftime_map:
+          zone_naming:
+            canonical_service_zones: [zone_a, zone_b]
+            legacy_zone_aliases:
+              zone_a: zone_1
+              zone_b: zone_2
+        """
+        ).strip(),
+        encoding="utf-8",
+    )
+
+    try:
+        load_config(path)
+        assert False, "Expected ValueError for invalid canonical zone naming"
+    except ValueError as error:
+        assert "canonical_service_zones" in str(error)

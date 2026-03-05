@@ -10,13 +10,17 @@ from dotenv import load_dotenv
 import yaml
 
 from simulated_city.config_models import (
+    BboxConfig,
     HalftimeBehaviorConfig,
+    HalftimeMapConfig,
     HalftimeBlockingConfig,
     HalftimeCapacityConfig,
     HalftimeKpiConfig,
     HalftimeSimulationConfig,
     HalftimeTimingConfig,
+    MapPointConfig,
     ServiceDistributionConfig,
+    ZoneNamingConfig,
 )
 
 
@@ -38,6 +42,7 @@ class AppConfig:
     mqtt_configs: dict[str, MqttConfig] = field(default_factory=dict)  # All active profiles
     simulation: "SimulationConfig | None" = None
     halftime: HalftimeSimulationConfig | None = None
+    halftime_map: HalftimeMapConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +104,7 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
     mqtt_config_dicts = _load_mqtt_configs(data, active_profiles)
     simulation = data.get("simulation")
     halftime = data.get("halftime")
+    halftime_map = data.get("halftime_map")
 
     # Build MqttConfig objects for all active profiles
     mqtt_configs: dict[str, MqttConfig] = {}
@@ -115,12 +121,14 @@ def load_config(path: str | Path = "config.yaml") -> AppConfig:
 
     sim_cfg = _parse_simulation_config(simulation)
     halftime_cfg = _parse_halftime_config(halftime)
+    halftime_map_cfg = _parse_halftime_map_config(halftime_map)
 
     return AppConfig(
         mqtt=primary_mqtt,
         mqtt_configs=mqtt_configs,
         simulation=sim_cfg,
         halftime=halftime_cfg,
+        halftime_map=halftime_map_cfg,
     )
 
 
@@ -475,6 +483,100 @@ def _parse_halftime_config(raw: Any) -> HalftimeSimulationConfig | None:
         behavior=behavior,
         blocking=blocking,
         kpi=kpi,
+    )
+
+
+def _parse_halftime_map_point(raw: Any, key_name: str) -> MapPointConfig:
+    if not isinstance(raw, list) or len(raw) != 2:
+        raise ValueError(f"Config key '{key_name}' must be a [lng, lat] list")
+    return MapPointConfig(lng=float(raw[0]), lat=float(raw[1]))
+
+
+def _parse_halftime_map_bbox(raw: Any) -> BboxConfig:
+    if not isinstance(raw, list) or len(raw) != 4:
+        raise ValueError("Config key 'halftime_map.seat_area_bbox' must be a [min_lng, min_lat, max_lng, max_lat] list")
+    return BboxConfig(
+        min_lng=float(raw[0]),
+        min_lat=float(raw[1]),
+        max_lng=float(raw[2]),
+        max_lat=float(raw[3]),
+    )
+
+
+def _parse_halftime_map_config(raw: Any) -> HalftimeMapConfig | None:
+    """Parse typed `halftime_map:` configuration for movement-map phases."""
+
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("Config key 'halftime_map' must be a mapping")
+
+    center_lng = float(raw.get("center_lng") if raw.get("center_lng") is not None else 12.5683)
+    center_lat = float(raw.get("center_lat") if raw.get("center_lat") is not None else 55.6761)
+    center = MapPointConfig(lng=center_lng, lat=center_lat)
+
+    seat_area_bbox = _parse_halftime_map_bbox(
+        raw.get("seat_area_bbox") if raw.get("seat_area_bbox") is not None else [12.5679, 55.6759, 12.5687, 55.6766]
+    )
+
+    zone_naming_raw = raw.get("zone_naming") or {}
+    if not isinstance(zone_naming_raw, dict):
+        raise ValueError("Config key 'halftime_map.zone_naming' must be a mapping")
+
+    canonical_raw = zone_naming_raw.get("canonical_service_zones")
+    if canonical_raw is None:
+        canonical_raw = ["zone_1", "zone_2"]
+    if not isinstance(canonical_raw, list) or len(canonical_raw) != 2:
+        raise ValueError("Config key 'halftime_map.zone_naming.canonical_service_zones' must be a two-item list")
+
+    aliases_raw = zone_naming_raw.get("legacy_zone_aliases")
+    if aliases_raw is None:
+        aliases_raw = {"zone_a": "zone_1", "zone_b": "zone_2"}
+    if not isinstance(aliases_raw, dict):
+        raise ValueError("Config key 'halftime_map.zone_naming.legacy_zone_aliases' must be a mapping")
+
+    zone_naming = ZoneNamingConfig(
+        canonical_service_zones=(str(canonical_raw[0]), str(canonical_raw[1])),
+        legacy_zone_aliases={str(k): str(v) for k, v in aliases_raw.items()},
+    )
+
+    return HalftimeMapConfig(
+        center=center,
+        zoom=int(raw.get("zoom") if raw.get("zoom") is not None else 17),
+        seat_area_bbox=seat_area_bbox,
+        zone_1_toilet_w=_parse_halftime_map_point(
+            raw.get("zone_1_toilet_w") if raw.get("zone_1_toilet_w") is not None else [12.5678, 55.6762],
+            "halftime_map.zone_1_toilet_w",
+        ),
+        zone_1_toilet_m=_parse_halftime_map_point(
+            raw.get("zone_1_toilet_m") if raw.get("zone_1_toilet_m") is not None else [12.5679, 55.67622],
+            "halftime_map.zone_1_toilet_m",
+        ),
+        zone_1_cafe=_parse_halftime_map_point(
+            raw.get("zone_1_cafe") if raw.get("zone_1_cafe") is not None else [12.5680, 55.67618],
+            "halftime_map.zone_1_cafe",
+        ),
+        zone_2_toilet_w=_parse_halftime_map_point(
+            raw.get("zone_2_toilet_w") if raw.get("zone_2_toilet_w") is not None else [12.5689, 55.6760],
+            "halftime_map.zone_2_toilet_w",
+        ),
+        zone_2_toilet_m=_parse_halftime_map_point(
+            raw.get("zone_2_toilet_m") if raw.get("zone_2_toilet_m") is not None else [12.5690, 55.67602],
+            "halftime_map.zone_2_toilet_m",
+        ),
+        zone_2_cafe=_parse_halftime_map_point(
+            raw.get("zone_2_cafe") if raw.get("zone_2_cafe") is not None else [12.5691, 55.67598],
+            "halftime_map.zone_2_cafe",
+        ),
+        shared_urinal=_parse_halftime_map_point(
+            raw.get("shared_urinal") if raw.get("shared_urinal") is not None else [12.5685, 55.6756],
+            "halftime_map.shared_urinal",
+        ),
+        publish_interval_s=int(raw.get("publish_interval_s") if raw.get("publish_interval_s") is not None else 1),
+        max_points_per_message=int(
+            raw.get("max_points_per_message") if raw.get("max_points_per_message") is not None else 1000
+        ),
+        zone_naming=zone_naming,
     )
 
 

@@ -1,3 +1,5 @@
+from textwrap import dedent
+
 from simulated_city.config import load_config
 
 
@@ -102,7 +104,8 @@ def test_load_config_single_broker_with_active_profiles(tmp_path) -> None:
     """Test single-broker configuration using active_profiles."""
     p = tmp_path / "config.yaml"
     p.write_text(
-        """
+        dedent(
+            """
         mqtt:
           active_profiles: [local]
           profiles:
@@ -113,7 +116,8 @@ def test_load_config_single_broker_with_active_profiles(tmp_path) -> None:
           client_id_prefix: single-test
           keepalive_s: 60
           base_topic: test-city
-        """.strip(),
+        """
+        ).strip(),
         encoding="utf-8",
     )
 
@@ -125,3 +129,75 @@ def test_load_config_single_broker_with_active_profiles(tmp_path) -> None:
     # Only local broker in configs
     assert "local" in cfg.mqtt_configs
     assert len(cfg.mqtt_configs) == 1
+
+
+def test_load_config_parses_halftime_map_section(tmp_path) -> None:
+    """Test typed halftime_map parsing and zone naming compatibility config."""
+    p = tmp_path / "config.yaml"
+    p.write_text(
+        dedent(
+            """
+        mqtt:
+          active_profiles: [local]
+          profiles:
+            local:
+              host: localhost
+              port: 1883
+              tls: false
+
+        halftime_map:
+          center_lng: 12.5683
+          center_lat: 55.6761
+          zoom: 17
+          seat_area_bbox: [12.5679, 55.6759, 12.5687, 55.6766]
+          zone_1_toilet_w: [12.5678, 55.6762]
+          zone_1_toilet_m: [12.5679, 55.67622]
+          zone_1_cafe: [12.5680, 55.67618]
+          zone_2_toilet_w: [12.5689, 55.6760]
+          zone_2_toilet_m: [12.5690, 55.67602]
+          zone_2_cafe: [12.5691, 55.67598]
+          shared_urinal: [12.5685, 55.6756]
+          publish_interval_s: 1
+          max_points_per_message: 1000
+          zone_naming:
+            canonical_service_zones: [zone_1, zone_2]
+            legacy_zone_aliases:
+              zone_a: zone_1
+              zone_b: zone_2
+        """
+        ).strip(),
+        encoding="utf-8",
+    )
+
+    cfg = load_config(p)
+
+    assert cfg.halftime_map is not None
+    assert cfg.halftime_map.zoom == 17
+    assert cfg.halftime_map.max_points_per_message == 1000
+    assert cfg.halftime_map.zone_naming.canonical_service_zones == ("zone_1", "zone_2")
+    assert cfg.halftime_map.zone_naming.legacy_zone_aliases == {
+        "zone_a": "zone_1",
+        "zone_b": "zone_2",
+    }
+
+
+def test_load_config_defaults_halftime_map_to_none_when_missing(tmp_path) -> None:
+    """Test that halftime_map remains optional when omitted."""
+    p = tmp_path / "config.yaml"
+    p.write_text(
+        dedent(
+            """
+        mqtt:
+          active_profiles: [local]
+          profiles:
+            local:
+              host: localhost
+              port: 1883
+              tls: false
+        """
+        ).strip(),
+        encoding="utf-8",
+    )
+
+    cfg = load_config(p)
+    assert cfg.halftime_map is None

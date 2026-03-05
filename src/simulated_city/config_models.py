@@ -170,3 +170,89 @@ class HalftimeSimulationConfig:
             "women_ratio": self.behavior.women_ratio,
             "shared_urinal_total": self.capacity.shared_urinal_total,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class MapPointConfig:
+    """Longitude/latitude pair used for map anchors."""
+
+    lng: float
+    lat: float
+
+    def __post_init__(self) -> None:
+        if not (-180.0 <= self.lng <= 180.0):
+            raise ValueError("Map point longitude must be within -180..180")
+        if not (-90.0 <= self.lat <= 90.0):
+            raise ValueError("Map point latitude must be within -90..90")
+
+
+@dataclass(frozen=True, slots=True)
+class BboxConfig:
+    """Bounding box in [min_lng, min_lat, max_lng, max_lat] format."""
+
+    min_lng: float
+    min_lat: float
+    max_lng: float
+    max_lat: float
+
+    def __post_init__(self) -> None:
+        if not (-180.0 <= self.min_lng <= 180.0 and -180.0 <= self.max_lng <= 180.0):
+            raise ValueError("halftime_map.seat_area_bbox longitude values must be within -180..180")
+        if not (-90.0 <= self.min_lat <= 90.0 and -90.0 <= self.max_lat <= 90.0):
+            raise ValueError("halftime_map.seat_area_bbox latitude values must be within -90..90")
+        if self.max_lng <= self.min_lng:
+            raise ValueError("halftime_map.seat_area_bbox max_lng must be greater than min_lng")
+        if self.max_lat <= self.min_lat:
+            raise ValueError("halftime_map.seat_area_bbox max_lat must be greater than min_lat")
+
+
+@dataclass(frozen=True, slots=True)
+class ZoneNamingConfig:
+    """Service-zone naming policy for planned movement data.
+
+    Canonical names are `zone_1` and `zone_2`. Legacy aliases keep
+    compatibility with older queue/congestion naming (`zone_a`, `zone_b`).
+    """
+
+    canonical_service_zones: tuple[str, str]
+    legacy_zone_aliases: dict[str, str]
+
+    def __post_init__(self) -> None:
+        expected = ("zone_1", "zone_2")
+        if self.canonical_service_zones != expected:
+            raise ValueError("halftime_map.canonical_service_zones must be ['zone_1', 'zone_2']")
+
+        required_aliases = {"zone_a": "zone_1", "zone_b": "zone_2"}
+        for legacy, canonical in required_aliases.items():
+            mapped = self.legacy_zone_aliases.get(legacy)
+            if mapped != canonical:
+                raise ValueError(
+                    f"halftime_map.legacy_zone_aliases must map '{legacy}' to '{canonical}'"
+                )
+
+
+@dataclass(frozen=True, slots=True)
+class HalftimeMapConfig:
+    """Typed config for planned halftime movement-map settings."""
+
+    center: MapPointConfig
+    zoom: int
+    seat_area_bbox: BboxConfig
+    zone_1_toilet_w: MapPointConfig
+    zone_1_toilet_m: MapPointConfig
+    zone_1_cafe: MapPointConfig
+    zone_2_toilet_w: MapPointConfig
+    zone_2_toilet_m: MapPointConfig
+    zone_2_cafe: MapPointConfig
+    shared_urinal: MapPointConfig
+    publish_interval_s: int
+    max_points_per_message: int
+    zone_naming: ZoneNamingConfig
+
+    def __post_init__(self) -> None:
+        if self.zoom < 0:
+            raise ValueError("halftime_map.zoom must be >= 0")
+        if self.publish_interval_s <= 0:
+            raise ValueError("halftime_map.publish_interval_s must be > 0")
+        if self.max_points_per_message <= 0:
+            raise ValueError("halftime_map.max_points_per_message must be > 0")

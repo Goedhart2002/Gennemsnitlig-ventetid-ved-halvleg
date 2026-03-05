@@ -121,3 +121,33 @@ halftime:
   kpi:
     # Valid range is 1..100 (inclusive).
     percentiles: [1, 5, 10, 25, 50, 75, 90, 95, 99, 100]
+
+halftime_map:
+  center_lng: 12.5683
+  center_lat: 55.6761
+  zoom: 17
+
+  # [min_lng, min_lat, max_lng, max_lat]
+  seat_area_bbox: [12.5679, 55.6759, 12.5687, 55.6766]
+
+  zone_1_toilet_w: [12.5678, 55.6762]
+  zone_1_toilet_m: [12.5679, 55.67622]
+  zone_1_cafe: [12.5680, 55.67618]
+
+  zone_2_toilet_w: [12.5689, 55.6760]
+  zone_2_toilet_m: [12.5690, 55.67602]
+  zone_2_cafe: [12.5691, 55.67598]
+
+  shared_urinal: [12.5685, 55.6756]
+
+  publish_interval_s: 1
+  max_points_per_message: 1000
+
+  zone_naming:
+    # Canonical naming for movement-track payloads.
+    canonical_service_zones: [zone_1, zone_2]
+
+    # Legacy compatibility mapping used by existing queue/congestion payload naming.
+    legacy_zone_aliases:
+      zone_a: zone_1
+      zone_b: zone_2

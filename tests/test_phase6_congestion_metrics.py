@@ -1,4 +1,5 @@
 from simulated_city.congestion import (
+    CongestionAgentState,
     CongestionPolicy,
     build_congestion_from_queue_state,
     evaluate_zone_cafe_blocked,
@@ -121,3 +122,65 @@ def test_phase6_metrics_ignores_other_run_ids() -> None:
     record_spectator_event(state, other_run_event)
 
     assert len(state.wait_samples_s) == first_count
+
+
+def test_phase6_congestion_state_rejects_stale_and_other_run() -> None:
+    policy = CongestionPolicy(queue_people_per_line_threshold=10, lines_considered=2)
+    state = CongestionAgentState()
+
+    first = build_congestion_from_queue_state(
+        queue_state_payload=_queue_state_payload(cafe_a=21, cafe_b=19),
+        policy=policy,
+        state=state,
+    )
+    assert first is not None
+
+    stale = build_congestion_from_queue_state(
+        queue_state_payload=_queue_state_payload(cafe_a=40, cafe_b=40),
+        policy=policy,
+        state=state,
+    )
+    assert stale is None
+
+    other_run_payload = _queue_state_payload(cafe_a=40, cafe_b=40)
+    other_run_payload["timestamp_s"] = 101
+    other_run_payload["run_id"] = "run-2"
+    other_run = build_congestion_from_queue_state(
+        queue_state_payload=other_run_payload,
+        policy=policy,
+        state=state,
+    )
+    assert other_run is None
+
+
+def test_phase6_metrics_rejects_stale_timestamps_per_stream() -> None:
+    state = MetricsAggregatorState(halftime_duration_s=900)
+
+    record_queue_state(state, _queue_state_payload(cafe_a=10, cafe_b=10))
+    queue_samples = len(state.wait_samples_s)
+    record_queue_state(state, _queue_state_payload(cafe_a=20, cafe_b=20))
+    assert len(state.wait_samples_s) == queue_samples
+
+    record_spectator_event(state, _spectator_event(500, out_of_seat=50, toilet=20, cafe=10))
+    after_first_spectator = len(state.wait_samples_s)
+    record_spectator_event(state, _spectator_event(500, out_of_seat=80, toilet=30, cafe=20))
+    assert len(state.wait_samples_s) == after_first_spectator
+
+
+def test_phase6_finalize_kpi_enforces_run_and_time_guards() -> None:
+    state = MetricsAggregatorState(halftime_duration_s=900)
+    record_spectator_event(state, _spectator_event(900, out_of_seat=40, toilet=12, cafe=8))
+
+    try:
+        finalize_kpi_payload(state=state, run_id="run-2", timestamp_s=900)
+        assert False, "Expected ValueError for run mismatch"
+    except ValueError as error:
+        assert "run_id" in str(error)
+
+    state2 = MetricsAggregatorState(halftime_duration_s=900)
+    record_spectator_event(state2, _spectator_event(100, out_of_seat=10, toilet=5, cafe=5))
+    try:
+        finalize_kpi_payload(state=state2, run_id="run-1", timestamp_s=899)
+        assert False, "Expected ValueError for pre-halftime finalization"
+    except ValueError as error:
+        assert "halftime_duration_s" in str(error)

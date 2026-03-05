@@ -1,0 +1,85 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            12.567768134715026,
+            55.67661471186441
+          ],
+          [
+            12.567768134715026,
+            55.67595501694915
+          ]
+        ]
+      },
+      "properties": {
+        "name": "yellow-stair-1",
+        "stair_color": "yellow"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            12.567768134715026,
+            55.675920644067794
+          ],
+          [
+            12.567768134715026,
+            55.67546322033898
+          ]
+        ]
+      },
+      "properties": {
+        "name": "blue-stair-2",
+        "stair_color": "blue"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            12.569127029360967,
+            55.67661206779661
+          ],
+          [
+            12.569127029360967,
+            55.67597616949153
+          ]
+        ]
+      },
+      "properties": {
+        "name": "yellow-stair-3",
+        "stair_color": "yellow"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            12.569131865284975,
+            55.67594047457627
+          ],
+          [
+            12.569131865284975,
+            55.67545925423729
+          ]
+        ]
+      },
+      "properties": {
+        "name": "blue-stair-4",
+        "stair_color": "blue"
+      }
+    }
+  ]
+}

@@ -117,7 +117,7 @@ MapLibre map integration tests.
 
 ### test_phase6_congestion_metrics.py
 
-Phase 6 congestion and metrics aggregation checks.
+Phase 6 congestion and metrics aggregation checks, including Phase 6.2 hardening behavior.
 
 | Test | Purpose |
 |------|---------|
@@ -126,6 +126,16 @@ Phase 6 congestion and metrics aggregation checks.
 | `test_phase6_metrics_kpi_payload_contains_full_percentile_profile()` | Ensure KPI payload includes `average_wait_s`, `missed_kickoff_count`, and `P01..P100` |
 | `test_phase6_missed_kickoff_uses_exact_900_seconds()` | Enforce missed kickoff evaluation exactly at `900s` |
 | `test_phase6_final_policy_enforcement()` | Validate final scenario rules (no disruptions, controlled group coordination) |
+| `test_phase6_congestion_state_rejects_stale_and_other_run()` | Ensure congestion ignores stale timestamps and mismatched `run_id` |
+| `test_phase6_metrics_rejects_stale_timestamps_per_stream()` | Ensure metrics ignores stale spectator/queue timestamps per stream |
+| `test_phase6_finalize_kpi_enforces_run_and_time_guards()` | Ensure KPI finalize requires matching `run_id` and halftime-complete timestamp |
+
+### test_phase5_dashboard_data_shapes.py
+
+Phase 5 dashboard parsing and state-update checks.
+
+Additional ordering hardening test:
+- `test_phase5_state_update_ignores_stale_per_stream_timestamps()` validates stale queue/movement payloads are ignored.
 
 ## Multi-Broker Configuration Testing
 

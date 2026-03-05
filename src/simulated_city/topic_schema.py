@@ -6,6 +6,8 @@ STADIUM_A4_HALFTIME_SPECTATOR_EVENTS = "stadium/a4/halftime/events/spectator"
 STADIUM_A4_HALFTIME_QUEUE_STATE = "stadium/a4/halftime/state/queues"
 STADIUM_A4_HALFTIME_KPI_METRICS = "stadium/a4/halftime/metrics/kpi"
 STADIUM_A4_HALFTIME_CONGESTION_STATE = "stadium/a4/halftime/state/congestion"
+STADIUM_A4_HALFTIME_MOVEMENT_STATE = "stadium/a4/halftime/state/movement"
+STADIUM_A4_HALFTIME_TASK_STATE = "stadium/a4/halftime/state/tasks"
 
 
 def topic_spectator_events() -> str:
@@ -30,3 +32,15 @@ def topic_congestion_state() -> str:
     """Return the optional congestion-state topic used by dashboard."""
 
     return STADIUM_A4_HALFTIME_CONGESTION_STATE
+
+
+def topic_movement_state() -> str:
+    """Return the topic for per-spectator movement state snapshots."""
+
+    return STADIUM_A4_HALFTIME_MOVEMENT_STATE
+
+
+def topic_task_state() -> str:
+    """Return the topic for per-spectator task state transitions."""
+
+    return STADIUM_A4_HALFTIME_TASK_STATE

@@ -7,6 +7,8 @@ import hashlib
 
 from simulated_city.mqtt_payloads import (
     build_queue_state_payload,
+    build_task_state_payload,
+    validate_movement_state_payload,
     validate_spectator_event_payload,
 )
 
@@ -18,6 +20,12 @@ class FacilityManagerState:
     shared_urinal_total: int
     schema_version: str = "1.0"
     last_event_timestamp_s: int = -1
+    last_movement_timestamp_s: int = -1
+    last_task_state_by_spectator: dict[int, str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.last_task_state_by_spectator is None:
+            self.last_task_state_by_spectator = {}
 
 
 def _stable_zone_ratio(*, run_id: str, timestamp_s: int, channel: str) -> float:
@@ -76,8 +84,8 @@ def process_spectator_event(
     toilet_ratio = _stable_zone_ratio(run_id=run_id, timestamp_s=timestamp_s, channel="toilet")
     cafe_ratio = _stable_zone_ratio(run_id=run_id, timestamp_s=timestamp_s, channel="cafe")
 
-    zone_a_toilet, zone_b_toilet = _split_by_ratio(remaining_toilet, toilet_ratio)
-    zone_a_cafe, zone_b_cafe = _split_by_ratio(total_cafe, cafe_ratio)
+    zone_1_toilet, zone_2_toilet = _split_by_ratio(remaining_toilet, toilet_ratio)
+    zone_1_cafe, zone_2_cafe = _split_by_ratio(total_cafe, cafe_ratio)
 
     state.last_event_timestamp_s = timestamp_s
 
@@ -86,9 +94,62 @@ def process_spectator_event(
         run_id=run_id,
         timestamp_s=timestamp_s,
         source_event_timestamp_s=timestamp_s,
-        zone_a_toilet=zone_a_toilet,
-        zone_a_cafe=zone_a_cafe,
-        zone_b_toilet=zone_b_toilet,
-        zone_b_cafe=zone_b_cafe,
+        zone_a_toilet=zone_1_toilet,
+        zone_a_cafe=zone_1_cafe,
+        zone_b_toilet=zone_2_toilet,
+        zone_b_cafe=zone_2_cafe,
         shared_urinal=shared_urinal_queue,
     )
+
+
+def process_movement_snapshot(
+    state: FacilityManagerState,
+    movement_payload: dict,
+) -> list[dict]:
+    """Convert movement snapshot entries to task-state events.
+
+    Internal route naming is canonical (`zone_1`, `zone_2`). Task-state events are
+    emitted only when a spectator state transition changes the derived task state.
+    """
+
+    validate_movement_state_payload(movement_payload)
+
+    timestamp_s = int(movement_payload["timestamp_s"])
+    if timestamp_s <= state.last_movement_timestamp_s:
+        return []
+
+    run_id = str(movement_payload["run_id"])
+    task_events: list[dict] = []
+
+    for spectator in movement_payload["spectators"]:
+        spectator_id = int(spectator["spectator_id"])
+        movement_state = str(spectator["state"])
+        target = str(spectator["target"])
+        task_name = target.split("_", 2)[-1] if "_" in target else target
+
+        if movement_state in {"WALKING_TO_ZONE", "WAITING"}:
+            task_state = "queue_entered"
+        elif movement_state == "IN_SERVICE":
+            task_state = "service_started"
+        elif movement_state in {"WALKING_TO_SEAT", "SEATED_DONE", "done"}:
+            task_state = "service_completed"
+        else:
+            continue
+
+        previous = state.last_task_state_by_spectator.get(spectator_id)
+        if previous == task_state:
+            continue
+
+        payload = build_task_state_payload(
+            schema_version=state.schema_version,
+            run_id=run_id,
+            timestamp_s=timestamp_s,
+            spectator_id=spectator_id,
+            task=task_name,
+            task_state=task_state,
+        )
+        task_events.append(payload)
+        state.last_task_state_by_spectator[spectator_id] = task_state
+
+    state.last_movement_timestamp_s = timestamp_s
+    return task_events

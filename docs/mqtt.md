@@ -18,6 +18,7 @@ All topics are defined in `src/simulated_city/topic_schema.py`.
   - publishes to `stadium/a4/halftime/state/congestion`
 - `notebooks/agent_metrics.ipynb`
   - subscribes to `stadium/a4/halftime/events/spectator`
+  - subscribes to `stadium/a4/halftime/state/queues`
   - publishes to `stadium/a4/halftime/metrics/kpi`
 - `notebooks/dashboard_a4.ipynb`
   - subscribes to:
@@ -33,6 +34,15 @@ Use these APIs in notebooks and scripts:
 - `mqtt.publish_json_checked(client, topic, data)`
 
 Do not hardcode broker credentials in notebook cells. Load via `simulated_city.config.load_config()` and `.env` variables referenced by `config.yaml`.
+
+## Run consistency policy (Phase 6.2)
+
+Downstream agents and dashboard readers follow a monotonic processing rule:
+- Lock to the first valid `run_id` seen in a session.
+- Ignore messages from other `run_id` values.
+- Ignore stale/out-of-order messages where `timestamp_s` is not strictly increasing for the same stream.
+
+This policy keeps restart/reconnect behavior deterministic and prevents mixed-run state.
 
 ## Payload schemas (current)
 

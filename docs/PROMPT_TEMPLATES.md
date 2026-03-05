@@ -195,7 +195,7 @@ You are operating in AGENT mode:
 
 ## Rules (from .github/copilot-instructions.md)
 These are non-negotiable:
-1. Use anymap-ts for mapping (NEVER folium, matplotlib, or plotly for real-time data)
+1. Use anymap-ts or matplotlib for mapping (NEVER folium or plotly for real-time data)
 2. Each notebook represents ONE agent (NEVER combine multiple agents in one notebook)
 3. Load configuration via simulated_city.config.load_config() (never hardcode values)
 4. Use mqtt.publish_json_checked(client, topic, data) for verified publishing
@@ -203,11 +203,12 @@ These are non-negotiable:
 6. Add all dependencies to pyproject.toml FIRST, run: pip install -e ".[notebooks]"
    (NEVER use !pip install inside notebooks)
 7. Start with comments explaining each cell's purpose
+8. You may use a user-provided image from notebooks/assets/ to simulate people walking and doing tasks
 
 DO NOT:
 - Create a monolithic notebook
 - Ask for phases 2-6 yet
-- Suggest installing folium or matplotlib for real-time data
+- Suggest installing folium or plotly for real-time data
 - Hardcode MQTT settings or coordinates
 - Suggest !pip install inside the notebook code
 
@@ -488,14 +489,15 @@ If the AI ever ignores the templates above, paste this:
 ```
 RULES from .github/copilot-instructions.md:
 ❌ DO NOT:
-- Install folium, plotly, or matplotlib for real-time maps (use anymap-ts)
+- Install folium or plotly for real-time maps (use anymap-ts or matplotlib)
 - Create one big notebook with all agents (split into separate notebooks)
 - Hardcode MQTT settings (use config.yaml)
 - Use !pip install inside notebooks (add to pyproject.toml)
 - Call subprocess.run(["pip", "install", ...])
 
 ✅ DO:
-- Use anymap-ts[all] from pyproject.toml for mapping
+- Use anymap-ts[all] or matplotlib from pyproject.toml for mapping
+- Use images in notebooks/assets/ to define seat points, walking paths, and task zones
 - Split simulations into agent notebooks (each publishes/subscribes via MQTT)
 - Load config via: simulated_city.config.load_config()
 - Use: mqtt.publish_json_checked(client, topic, data)
@@ -596,7 +598,7 @@ RULES from .github/copilot-instructions.md:
 
 ### Step 3+: Implementation (AGENT Mode)
 - ❌ AI asks "Should I implement this?" → **Reject:** "You're in AGENT mode. Implement it now."
-- ❌ AI uses folium → **Reject:** "Use anymap-ts. Rewrite it."
+- ❌ AI uses folium/plotly → **Reject:** "Use anymap-ts or matplotlib. Rewrite it."
 - ❌ AI creates one giant notebook → **Reject:** "Split this into separate agent notebooks."
 - ❌ AI suggests `!pip install` → **Reject:** "Add to pyproject.toml instead."
 - ❌ AI hardcodes MQTT settings → **Reject:** "Use config.yaml and config.load_config()."

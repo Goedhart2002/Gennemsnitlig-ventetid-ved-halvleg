@@ -19,3 +19,13 @@ def test_inject_renderer_binding_parses_alt_export() -> None:
     out = _inject_renderer_binding(content)
     assert "const MapLibreRenderer=A$1;" in out
     assert "export{A$1 as MapLibreRenderer" in out
+
+
+def test_inject_renderer_binding_raises_for_missing_renderer_export() -> None:
+    content = "export{foo as default};"
+
+    try:
+        _inject_renderer_binding(content)
+        assert False, "Expected RuntimeError when MapLibreRenderer export is missing"
+    except RuntimeError as error:
+        assert "MapLibreRenderer" in str(error)

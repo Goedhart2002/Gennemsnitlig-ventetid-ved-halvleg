@@ -2,6 +2,14 @@
 
 This guide documents Phase 6 where advanced behavior is completed with a congestion agent and a metrics agent.
 
+## Phase 6.2 hardening guarantees
+
+Phase 6.2 adds strict stream-consistency rules:
+- Congestion processing locks to the first seen `run_id` and ignores stale queue timestamps.
+- Metrics aggregation locks to the first seen `run_id` and ignores stale timestamps per input stream.
+- Dashboard stream updates ignore stale/out-of-order timestamps per stream.
+- KPI finalization now enforces matching `run_id` and `timestamp_s >= halftime_duration_s`.
+
 ## 1. What Was Created
 
 ### Notebooks and Scripts
@@ -110,6 +118,11 @@ Expected lines include:
 If output is different:
 - `Published KPI payload: False` means publish/ack failed.
 - `KPI percentiles available` not equal to `100` means invalid KPI aggregation.
+
+Additional Phase 6.2 validation:
+- Replayed queue messages with the same or older `timestamp_s` do not increment published congestion count.
+- Replayed spectator/queue messages with the same or older `timestamp_s` do not change KPI sample counts.
+- Finalization before halftime (`timestamp_s < halftime_duration_s`) raises a validation error.
 
 ## 4. MQTT Topics
 

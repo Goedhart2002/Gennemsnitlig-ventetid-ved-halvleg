@@ -82,6 +82,135 @@ def validate_spectator_event_payload(payload: dict[str, Any]) -> None:
                 raise ValueError(f"{optional_field} must be a non-negative integer")
 
 
+def build_movement_state_payload(
+    *,
+    schema_version: str,
+    run_id: str,
+    timestamp_s: int,
+    spectators: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build movement-state payload for Phase 3.2 spectator publisher."""
+
+    payload: dict[str, Any] = {
+        "schema_version": schema_version,
+        "run_id": run_id,
+        "timestamp_s": timestamp_s,
+        "spectators": spectators,
+    }
+    validate_movement_state_payload(payload)
+    return payload
+
+
+def validate_movement_state_payload(payload: dict[str, Any]) -> None:
+    """Validate movement-state payload shape and spectator entry fields."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("Movement payload must be a dict")
+
+    required = ("schema_version", "run_id", "timestamp_s", "spectators")
+    missing = [key for key in required if key not in payload]
+    if missing:
+        raise ValueError(f"Movement payload missing required keys: {missing}")
+
+    if not isinstance(payload["schema_version"], str) or not payload["schema_version"].strip():
+        raise ValueError("schema_version must be a non-empty string")
+
+    if not isinstance(payload["run_id"], str) or not payload["run_id"].strip():
+        raise ValueError("run_id must be a non-empty string")
+
+    timestamp_s = payload["timestamp_s"]
+    if not isinstance(timestamp_s, int) or timestamp_s < 0:
+        raise ValueError("timestamp_s must be a non-negative integer")
+
+    spectators = payload["spectators"]
+    if not isinstance(spectators, list):
+        raise ValueError("spectators must be a list")
+
+    for index, spectator in enumerate(spectators):
+        if not isinstance(spectator, dict):
+            raise ValueError(f"spectators[{index}] must be a dict")
+
+        for key in ("spectator_id", "state", "target", "lng", "lat"):
+            if key not in spectator:
+                raise ValueError(f"spectators[{index}] missing required key '{key}'")
+
+        spectator_id = spectator["spectator_id"]
+        if not isinstance(spectator_id, int) or spectator_id <= 0:
+            raise ValueError(f"spectators[{index}].spectator_id must be a positive integer")
+
+        state = spectator["state"]
+        if not isinstance(state, str) or not state.strip():
+            raise ValueError(f"spectators[{index}].state must be a non-empty string")
+
+        target = spectator["target"]
+        if not isinstance(target, str) or not target.strip():
+            raise ValueError(f"spectators[{index}].target must be a non-empty string")
+
+        lng = spectator["lng"]
+        lat = spectator["lat"]
+        if not isinstance(lng, (int, float)) or not (-180.0 <= float(lng) <= 180.0):
+            raise ValueError(f"spectators[{index}].lng must be within -180..180")
+        if not isinstance(lat, (int, float)) or not (-90.0 <= float(lat) <= 90.0):
+            raise ValueError(f"spectators[{index}].lat must be within -90..90")
+
+
+def build_task_state_payload(
+    *,
+    schema_version: str,
+    run_id: str,
+    timestamp_s: int,
+    spectator_id: int,
+    task: str,
+    task_state: str,
+) -> dict[str, Any]:
+    """Build per-spectator task-state payload for Phase 4.2."""
+
+    payload: dict[str, Any] = {
+        "schema_version": schema_version,
+        "run_id": run_id,
+        "timestamp_s": timestamp_s,
+        "spectator_id": spectator_id,
+        "task": task,
+        "task_state": task_state,
+    }
+    validate_task_state_payload(payload)
+    return payload
+
+
+def validate_task_state_payload(payload: dict[str, Any]) -> None:
+    """Validate task-state payload fields and allowed task-state values."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("Task-state payload must be a dict")
+
+    required = ("schema_version", "run_id", "timestamp_s", "spectator_id", "task", "task_state")
+    missing = [key for key in required if key not in payload]
+    if missing:
+        raise ValueError(f"Task-state payload missing required keys: {missing}")
+
+    if not isinstance(payload["schema_version"], str) or not payload["schema_version"].strip():
+        raise ValueError("schema_version must be a non-empty string")
+    if not isinstance(payload["run_id"], str) or not payload["run_id"].strip():
+        raise ValueError("run_id must be a non-empty string")
+
+    timestamp_s = payload["timestamp_s"]
+    if not isinstance(timestamp_s, int) or timestamp_s < 0:
+        raise ValueError("timestamp_s must be a non-negative integer")
+
+    spectator_id = payload["spectator_id"]
+    if not isinstance(spectator_id, int) or spectator_id <= 0:
+        raise ValueError("spectator_id must be a positive integer")
+
+    task = payload["task"]
+    if not isinstance(task, str) or not task.strip():
+        raise ValueError("task must be a non-empty string")
+
+    task_state = payload["task_state"]
+    allowed = {"queue_entered", "service_started", "service_completed"}
+    if not isinstance(task_state, str) or task_state not in allowed:
+        raise ValueError("task_state must be one of queue_entered|service_started|service_completed")
+
+
 def build_queue_state_payload(
     *,
     schema_version: str,

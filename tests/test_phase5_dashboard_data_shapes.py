@@ -1,5 +1,6 @@
 from simulated_city.dashboard_views import (
     DashboardState,
+    parse_movement_payload,
     normalize_wait_percentiles,
     parse_congestion_payload,
     parse_kpi_payload,
@@ -9,6 +10,7 @@ from simulated_city.dashboard_views import (
 from simulated_city.topic_schema import (
     topic_congestion_state,
     topic_kpi_metrics,
+    topic_movement_state,
     topic_queue_state,
 )
 
@@ -81,6 +83,35 @@ def test_phase5_parse_congestion_payload_shape() -> None:
     assert parsed.zone_b_blocked is False
 
 
+def test_phase5_parse_movement_payload_shape() -> None:
+    payload = {
+        "timestamp_s": 130,
+        "spectators": [
+            {
+                "spectator_id": 1,
+                "state": "WALKING_TO_ZONE",
+                "target": "zone_1_toilet_w",
+                "lng": 12.56845,
+                "lat": 55.67618,
+            },
+            {
+                "spectator_id": 2,
+                "state": "IN_SERVICE",
+                "target": "zone_2_cafe",
+                "lng": 12.56910,
+                "lat": 55.67598,
+            },
+        ],
+    }
+
+    parsed = parse_movement_payload(payload)
+
+    assert parsed.timestamp_s == 130
+    assert len(parsed.spectators) == 2
+    assert parsed.spectators[0].spectator_id == 1
+    assert parsed.spectators[1].target == "zone_2_cafe"
+
+
 def test_phase5_state_update_by_topic() -> None:
     state = DashboardState()
 
@@ -99,6 +130,7 @@ def test_phase5_state_update_by_topic() -> None:
         topic_queue_state=topic_queue_state(),
         topic_kpi_metrics=topic_kpi_metrics(),
         topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
     )
     update_dashboard_state_from_topic(
         state,
@@ -117,12 +149,39 @@ def test_phase5_state_update_by_topic() -> None:
         topic_queue_state=topic_queue_state(),
         topic_kpi_metrics=topic_kpi_metrics(),
         topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
+    )
+
+    update_dashboard_state_from_topic(
+        state,
+        topic_movement_state(),
+        {
+            "run_id": "run-a",
+            "timestamp_s": 21,
+            "spectators": [
+                {
+                    "spectator_id": 9,
+                    "state": "WALKING_TO_ZONE",
+                    "target": "zone_1_toilet_m",
+                    "lng": 12.5679,
+                    "lat": 55.67622,
+                }
+            ],
+        },
+        topic_queue_state=topic_queue_state(),
+        topic_kpi_metrics=topic_kpi_metrics(),
+        topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
     )
 
     assert len(state.queue_trends) == 1
     assert state.latest_kpi is not None
+    assert state.latest_movement is not None
     assert state.latest_kpi.missed_kickoff_count == 15
     assert state.latest_kpi.went_down_made_back_count == 65
+    assert state.latest_timestamps_by_stream["queues"] == 10
+    assert state.latest_timestamps_by_stream["kpi"] == 20
+    assert state.latest_timestamps_by_stream["movement"] == 21
 
 
 def test_phase5_state_update_ignores_other_run_ids() -> None:
@@ -143,6 +202,7 @@ def test_phase5_state_update_ignores_other_run_ids() -> None:
         topic_queue_state=topic_queue_state(),
         topic_kpi_metrics=topic_kpi_metrics(),
         topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
     )
 
     update_dashboard_state_from_topic(
@@ -160,6 +220,118 @@ def test_phase5_state_update_ignores_other_run_ids() -> None:
         topic_queue_state=topic_queue_state(),
         topic_kpi_metrics=topic_kpi_metrics(),
         topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
+    )
+
+    update_dashboard_state_from_topic(
+        state,
+        topic_movement_state(),
+        {
+            "run_id": "run-b",
+            "timestamp_s": 12,
+            "spectators": [
+                {
+                    "spectator_id": 1,
+                    "state": "WALKING_TO_ZONE",
+                    "target": "zone_1_toilet_w",
+                    "lng": 12.56845,
+                    "lat": 55.67618,
+                }
+            ],
+        },
+        topic_queue_state=topic_queue_state(),
+        topic_kpi_metrics=topic_kpi_metrics(),
+        topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
     )
 
     assert len(state.queue_trends) == 1
+    assert state.latest_movement is None
+
+
+def test_phase5_state_update_ignores_stale_per_stream_timestamps() -> None:
+    state = DashboardState()
+
+    update_dashboard_state_from_topic(
+        state,
+        topic_queue_state(),
+        {
+            "run_id": "run-a",
+            "timestamp_s": 10,
+            "queues": {
+                "zone_a": {"toilet": 1, "cafe": 2},
+                "zone_b": {"toilet": 3, "cafe": 4},
+                "shared_mens_urinal": 5,
+            },
+        },
+        topic_queue_state=topic_queue_state(),
+        topic_kpi_metrics=topic_kpi_metrics(),
+        topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
+    )
+
+    update_dashboard_state_from_topic(
+        state,
+        topic_queue_state(),
+        {
+            "run_id": "run-a",
+            "timestamp_s": 9,
+            "queues": {
+                "zone_a": {"toilet": 9, "cafe": 9},
+                "zone_b": {"toilet": 9, "cafe": 9},
+                "shared_mens_urinal": 9,
+            },
+        },
+        topic_queue_state=topic_queue_state(),
+        topic_kpi_metrics=topic_kpi_metrics(),
+        topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
+    )
+
+    update_dashboard_state_from_topic(
+        state,
+        topic_movement_state(),
+        {
+            "run_id": "run-a",
+            "timestamp_s": 20,
+            "spectators": [
+                {
+                    "spectator_id": 1,
+                    "state": "WALKING_TO_ZONE",
+                    "target": "zone_1_toilet_w",
+                    "lng": 12.56845,
+                    "lat": 55.67618,
+                }
+            ],
+        },
+        topic_queue_state=topic_queue_state(),
+        topic_kpi_metrics=topic_kpi_metrics(),
+        topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
+    )
+    update_dashboard_state_from_topic(
+        state,
+        topic_movement_state(),
+        {
+            "run_id": "run-a",
+            "timestamp_s": 20,
+            "spectators": [
+                {
+                    "spectator_id": 2,
+                    "state": "WAITING",
+                    "target": "zone_2_cafe",
+                    "lng": 12.56910,
+                    "lat": 55.67598,
+                }
+            ],
+        },
+        topic_queue_state=topic_queue_state(),
+        topic_kpi_metrics=topic_kpi_metrics(),
+        topic_congestion_state=topic_congestion_state(),
+        topic_movement_state=topic_movement_state(),
+    )
+
+    assert len(state.queue_trends) == 1
+    assert state.latest_timestamps_by_stream["queues"] == 10
+    assert state.latest_movement is not None
+    assert state.latest_movement.spectators[0].spectator_id == 1

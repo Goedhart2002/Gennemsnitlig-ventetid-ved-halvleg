@@ -9,7 +9,8 @@ This repository is a beginner-friendly workshop template for learning agent-base
 - Teachability first: simple, explicit control flow and readable code.
 - Smallest change that satisfies the requirement; avoid extra features/tooling.
 - Documentation-driven development: update docs before behavior changes.
-- **No conflicting tools:** `anymap-ts` for mapping (never `folium`, `plotly`, `matplotlib` for live data).
+- **Mapping tools:** Use `anymap-ts` or `matplotlib` for live data visualization (never `folium` or `plotly`).
+- **Image-driven simulation is allowed:** You may use a user-provided section image in `notebooks/assets/` to place people, define walk paths, and drive task routing.
 - **Distributed simulations:** Multiple small MQTT-communicating notebooks, never one monolithic notebook.
 
 ## Architecture and key modules
@@ -19,7 +20,7 @@ This repository is a beginner-friendly workshop template for learning agent-base
 - MQTT helpers are in `simulated_city.mqtt` with `connect_mqtt()` and `publish_json_checked()` (self-subscribe publish verifier).
 - Optional geospatial helpers live in `simulated_city.geo` (pyproj-backed EPSG transforms).
 - CLI smoke entry point is `python -m simulated_city` (see `src/simulated_city/__main__.py`).
-- Use anymap-ts for mapping and paho for MQTT client. Avoid extra dependencies to keep it simple.
+- Use anymap-ts or matplotlib for mapping and paho for MQTT client. Avoid extra dependencies to keep it simple.
 
 ## Notebook Structure (REQUIRED)
 
@@ -27,7 +28,7 @@ This repository is a beginner-friendly workshop template for learning agent-base
 
 1. **Each agent = separate notebook** (e.g., `agent_transport.ipynb`, `agent_environment.ipynb`)
 2. **Agents communicate via MQTT**, not shared memory or files
-3. **Dashboard notebook** subscribes to all agents and maps with `anymap-ts`
+3. **Dashboard notebook** subscribes to all agents and maps with `anymap-ts` or `matplotlib`
 4. Each notebook calls `mqtt.connect_mqtt()`, subscribes to inputs, runs a loop, publishes outputs
 
 See [docs/exercises.md](docs/exercises.md) for complete examples.
@@ -35,14 +36,15 @@ See [docs/exercises.md](docs/exercises.md) for complete examples.
 ## Forbidden Patterns
 
 ❌ **DO NOT:**
-- Install `folium`, `plotly`, or `matplotlib` for live/real-time mapping
+- Install `folium` or `plotly` for live/real-time mapping
 - Create one big notebook with all simulation logic
 - Hardcode MQTT settings or coordinates in notebooks (use `config.yaml`)
 - Install packages inside notebooks with `!pip install` (add to `pyproject.toml`)
 - Call `subprocess.run(["pip", "install", ...])` in code
 
 ✅ **DO:**
-- Use `anymap-ts[all]` from `pyproject.toml` for mapping
+- Use `anymap-ts[all]` or `matplotlib` from `pyproject.toml` for mapping
+- Use user-provided image assets in `notebooks/assets/` for overlays, seat extraction, path anchors, or task-zone geometry
 - Split simulations into independent agent notebooks
 - Load config with `simulated_city.config.load_config()`
 - Use `mqtt.publish_json_checked()` for verified publishing
@@ -111,16 +113,17 @@ If an AI (including GitHub Copilot) suggests code that violates these rules, **r
 
 ```
 Please follow .github/copilot-instructions.md and:
-1. Use anymap-ts (not folium) for mapping
+1. Use anymap-ts or matplotlib (not folium/plotly) for mapping
 2. Create separate agent notebooks communicating via MQTT (not one big notebook)
 3. Load configuration from config.yaml via simulated_city.config.load_config()
 4. Add dependencies to pyproject.toml (not pip install in notebooks)
+5. It is allowed to use images from notebooks/assets/ to simulate people walking and doing tasks
 ```
 
-**If the AI suggests `folium`, `matplotlib`, or `plotly` for real-time data:**
+**If the AI suggests `folium` or `plotly` for real-time data:**
 
 Say:
-> "No, we use anymap-ts for mapping. Please rewrite using anymap-ts from simulated_city and MQTT subscriptions."
+> "No, use anymap-ts or matplotlib for mapping. Please rewrite using approved tools from simulated_city and MQTT subscriptions."
 
 **If the AI creates a monolithic notebook:**
 
@@ -180,7 +183,7 @@ If a student submits code that violates these rules:
    python -m pytest
    ```
 3. **In code review**, link to the specific section in copilot-instructions.md:
-   > "This uses folium, which violates `.github/copilot-instructions.md#forbidden-patterns`. Please rewrite using anymap-ts."
+   > "This uses folium, which violates `.github/copilot-instructions.md#forbidden-patterns`. Please rewrite using anymap-ts or matplotlib."
 4. **If multiple students have the same error** — They're probably being given bad prompts by an AI model. Show them [STUDENT_GUIDE.md](STUDENT_GUIDE.md) and the "Common AI Mistakes" section.
 
 ---
@@ -190,7 +193,7 @@ If a student submits code that violates these rules:
 If an AI says "I don't see a copilot-instructions.md file" or ignores it:
 
 1. **Explicitly paste** the relevant section from the file into your prompt
-2. **Quote the rule**: "Your instructions say: 'use anymap-ts for mapping (never folium)'"
+2. **Quote the rule**: "Your instructions say: 'use anymap-ts or matplotlib for mapping (never folium/plotly)'"
 3. **Request re-work**: "Please rewrite this code to comply with these requirements"
 4. **Run validation** to catch violations the AI missed:
    ```bash

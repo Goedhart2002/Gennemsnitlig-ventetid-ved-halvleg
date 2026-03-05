@@ -1,0 +1,18 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          12.568435465999574,
+          55.67603429406745
+        ]
+      },
+      "properties": {
+        "name": "middle-red-stair-hub"
+      }
+    }
+  ]
+}

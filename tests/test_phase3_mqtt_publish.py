@@ -1,9 +1,11 @@
 from simulated_city.mqtt import publish_json_checked
 from simulated_city.mqtt_payloads import (
+    build_movement_state_payload,
     build_spectator_event_payload,
+    validate_movement_state_payload,
     validate_spectator_event_payload,
 )
-from simulated_city.topic_schema import topic_spectator_events
+from simulated_city.topic_schema import topic_movement_state, topic_spectator_events
 
 
 class _FakePublishResult:
@@ -38,6 +40,7 @@ class _FakeClient:
 
 def test_phase3_topic_matches_plan() -> None:
     assert topic_spectator_events() == "stadium/a4/halftime/events/spectator"
+    assert topic_movement_state() == "stadium/a4/halftime/state/movement"
 
 
 def test_phase3_payload_builder_includes_required_envelope() -> None:
@@ -57,6 +60,29 @@ def test_phase3_payload_builder_includes_required_envelope() -> None:
     assert payload["queue_lengths"]["cafe"] == 4
 
 
+def test_phase3_movement_payload_builder_includes_required_fields() -> None:
+    payload = build_movement_state_payload(
+        schema_version="1.0",
+        run_id="a4-run-test",
+        timestamp_s=11,
+        spectators=[
+            {
+                "spectator_id": 1,
+                "state": "WALKING_TO_ZONE",
+                "target": "zone_1_toilet_w",
+                "lng": 12.56845,
+                "lat": 55.67618,
+            }
+        ],
+    )
+
+    assert payload["schema_version"] == "1.0"
+    assert payload["run_id"] == "a4-run-test"
+    assert payload["timestamp_s"] == 11
+    assert payload["spectators"][0]["spectator_id"] == 1
+    assert payload["spectators"][0]["target"] == "zone_1_toilet_w"
+
+
 def test_phase3_payload_validator_rejects_missing_envelope_field() -> None:
     invalid_payload = {
         "schema_version": "1.0",
@@ -70,6 +96,27 @@ def test_phase3_payload_validator_rejects_missing_envelope_field() -> None:
         assert False, "Expected ValueError for missing run_id"
     except ValueError as error:
         assert "run_id" in str(error)
+
+
+def test_phase3_movement_validator_rejects_missing_lng_lat() -> None:
+    payload = {
+        "schema_version": "1.0",
+        "run_id": "a4-run-test",
+        "timestamp_s": 22,
+        "spectators": [
+            {
+                "spectator_id": 1,
+                "state": "WALKING_TO_ZONE",
+                "target": "zone_1_toilet_w",
+            }
+        ],
+    }
+
+    try:
+        validate_movement_state_payload(payload)
+        assert False, "Expected ValueError for missing lng/lat"
+    except ValueError as error:
+        assert "lng" in str(error) or "lat" in str(error)
 
 
 def test_phase3_publish_json_checked_sends_payload() -> None:
@@ -89,6 +136,31 @@ def test_phase3_publish_json_checked_sends_payload() -> None:
     assert len(fake_client.calls) == 1
     assert fake_client.calls[0]["topic"] == "stadium/a4/halftime/events/spectator"
     assert '"schema_version":"1.0"' in fake_client.calls[0]["payload"]
+
+
+def test_phase3_publish_json_checked_sends_movement_payload() -> None:
+    fake_client = _FakeClient(rc=0, published=True)
+    movement_payload = build_movement_state_payload(
+        schema_version="1.0",
+        run_id="a4-run-test",
+        timestamp_s=5,
+        spectators=[
+            {
+                "spectator_id": 3,
+                "state": "WALKING_TO_ZONE",
+                "target": "zone_2_cafe",
+                "lng": 12.5691,
+                "lat": 55.67598,
+            }
+        ],
+    )
+
+    ok = publish_json_checked(fake_client, topic_movement_state(), movement_payload, qos=1)
+
+    assert ok is True
+    assert len(fake_client.calls) == 1
+    assert fake_client.calls[0]["topic"] == "stadium/a4/halftime/state/movement"
+    assert '"target":"zone_2_cafe"' in fake_client.calls[0]["payload"]
 
 
 def test_phase3_publish_json_checked_fails_on_bad_rc() -> None:

@@ -35,6 +35,21 @@ class CongestionSnapshot:
     zone_b_blocked: bool
 
 
+@dataclass(frozen=True, slots=True)
+class MovementPoint:
+    spectator_id: int
+    state: str
+    target: str
+    lng: float
+    lat: float
+
+
+@dataclass(frozen=True, slots=True)
+class MovementSnapshot:
+    timestamp_s: int
+    spectators: tuple[MovementPoint, ...]
+
+
 @dataclass(slots=True)
 class DashboardState:
     """In-memory dashboard state updated from MQTT payloads."""
@@ -42,7 +57,9 @@ class DashboardState:
     queue_trends: list[QueueTrendPoint] = field(default_factory=list)
     latest_kpi: KpiSnapshot | None = None
     latest_congestion: CongestionSnapshot | None = None
+    latest_movement: MovementSnapshot | None = None
     active_run_id: str | None = None
+    latest_timestamps_by_stream: dict[str, int] = field(default_factory=dict)
 
 
 def _accept_run_id(state: DashboardState, payload: dict[str, Any]) -> bool:
@@ -55,6 +72,13 @@ def _accept_run_id(state: DashboardState, payload: dict[str, Any]) -> bool:
         state.active_run_id = run_id
         return True
     return run_id == state.active_run_id
+
+
+def _is_newer_for_stream(state: DashboardState, stream: str, timestamp_s: int) -> bool:
+    previous = state.latest_timestamps_by_stream.get(stream)
+    if previous is None:
+        return True
+    return timestamp_s > previous
 
 
 def _require_non_negative_int(name: str, value: Any) -> int:
@@ -169,6 +193,54 @@ def parse_congestion_payload(payload: dict[str, Any]) -> CongestionSnapshot:
     )
 
 
+def parse_movement_payload(payload: dict[str, Any]) -> MovementSnapshot:
+    """Parse movement-state payload used for live map points."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("movement payload must be a dict")
+
+    timestamp_s = _require_non_negative_int("timestamp_s", payload.get("timestamp_s"))
+    spectators_raw = payload.get("spectators")
+    if not isinstance(spectators_raw, list):
+        raise ValueError("spectators must be a list")
+
+    points: list[MovementPoint] = []
+    for index, spectator in enumerate(spectators_raw):
+        if not isinstance(spectator, dict):
+            raise ValueError(f"spectators[{index}] must be a dict")
+
+        spectator_id = spectator.get("spectator_id")
+        if not isinstance(spectator_id, int) or spectator_id <= 0:
+            raise ValueError(f"spectators[{index}].spectator_id must be a positive integer")
+
+        state = spectator.get("state")
+        if not isinstance(state, str) or not state.strip():
+            raise ValueError(f"spectators[{index}].state must be a non-empty string")
+
+        target = spectator.get("target")
+        if not isinstance(target, str) or not target.strip():
+            raise ValueError(f"spectators[{index}].target must be a non-empty string")
+
+        lng = spectator.get("lng")
+        lat = spectator.get("lat")
+        if not isinstance(lng, (int, float)) or float(lng) < -180.0 or float(lng) > 180.0:
+            raise ValueError(f"spectators[{index}].lng must be within -180..180")
+        if not isinstance(lat, (int, float)) or float(lat) < -90.0 or float(lat) > 90.0:
+            raise ValueError(f"spectators[{index}].lat must be within -90..90")
+
+        points.append(
+            MovementPoint(
+                spectator_id=spectator_id,
+                state=state,
+                target=target,
+                lng=float(lng),
+                lat=float(lat),
+            )
+        )
+
+    return MovementSnapshot(timestamp_s=timestamp_s, spectators=tuple(points))
+
+
 def update_dashboard_state_from_topic(
     state: DashboardState,
     topic: str,
@@ -177,6 +249,7 @@ def update_dashboard_state_from_topic(
     topic_queue_state: str,
     topic_kpi_metrics: str,
     topic_congestion_state: str,
+    topic_movement_state: str | None = None,
 ) -> None:
     """Update dashboard state from a topic + payload pair."""
 
@@ -184,10 +257,29 @@ def update_dashboard_state_from_topic(
         return
 
     if topic == topic_queue_state:
-        state.queue_trends.append(parse_queue_state_payload(payload))
+        queue_point = parse_queue_state_payload(payload)
+        if not _is_newer_for_stream(state, "queues", queue_point.timestamp_s):
+            return
+        state.queue_trends.append(queue_point)
+        state.latest_timestamps_by_stream["queues"] = queue_point.timestamp_s
         return
     if topic == topic_kpi_metrics:
-        state.latest_kpi = parse_kpi_payload(payload)
+        parsed_kpi = parse_kpi_payload(payload)
+        if not _is_newer_for_stream(state, "kpi", parsed_kpi.timestamp_s):
+            return
+        state.latest_kpi = parsed_kpi
+        state.latest_timestamps_by_stream["kpi"] = state.latest_kpi.timestamp_s
         return
     if topic == topic_congestion_state:
-        state.latest_congestion = parse_congestion_payload(payload)
+        parsed_congestion = parse_congestion_payload(payload)
+        if not _is_newer_for_stream(state, "congestion", parsed_congestion.timestamp_s):
+            return
+        state.latest_congestion = parsed_congestion
+        state.latest_timestamps_by_stream["congestion"] = state.latest_congestion.timestamp_s
+        return
+    if topic_movement_state is not None and topic == topic_movement_state:
+        parsed_movement = parse_movement_payload(payload)
+        if not _is_newer_for_stream(state, "movement", parsed_movement.timestamp_s):
+            return
+        state.latest_movement = parsed_movement
+        state.latest_timestamps_by_stream["movement"] = state.latest_movement.timestamp_s
